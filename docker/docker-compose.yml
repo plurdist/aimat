@@ -1,0 +1,20 @@
+version: '3.8'
+services:
+  musika:
+    image: musika-persist
+    container_name: musika-container
+    volumes:
+      - /home/ericbrowne/repos/ai-music-projects/musika:/musika  
+      - /mnt/c/users/eric/Documents/musika_outputs:/output  
+    ports:
+      - "7860:7860"
+      - "6006:6006"
+    stdin_open: true
+    tty: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
