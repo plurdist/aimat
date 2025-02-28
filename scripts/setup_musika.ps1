@@ -1,6 +1,6 @@
 # Define Docker image and container details
 $dockerImage = "plurdist/musika:latest"
-$containerName = "blah"
+$containerName = "musika-container"
 $composeFile = "docker-compose.yml"
 
 Write-Host "Checking environment setup..."
@@ -39,7 +39,7 @@ if (-Not (Get-Command "docker-compose" -ErrorAction SilentlyContinue) -and -Not 
 # Check if the Musika image exists
 $imageExists = docker images -q $dockerImage
 if (-Not $imageExists) {
-    Write-Host "🛠️  Musika Docker image not found. Pulling..."
+    Write-Host "Musika Docker image not found. Pulling..."
     docker pull $dockerImage
 }
 
