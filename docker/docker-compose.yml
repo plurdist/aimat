@@ -1,13 +1,12 @@
-version: '3.8'
 services:
   musika:
     image: plurdist/musika:latest
-    container_name: blah
+    container_name: musika-container
     volumes:
-      - "c:/repos/AI-Music-Toolkit/docker/musika_outputs:/output"  # Only mount the output directory
+      - "c:/repos/AI-Music-Toolkit/docker/musika_outputs:/output"  
     ports:
-      - "7860:7860"  # Expose Gradio web UI (if applicable)
-      - "6006:6006"  # Expose TensorBoard (if applicable)
+      - "7860:7860"
+      - "6006:6006"  
     stdin_open: true
     tty: true
     deploy:
