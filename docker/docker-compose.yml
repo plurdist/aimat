@@ -1,14 +1,13 @@
 version: '3.8'
 services:
   musika:
-    image: musika-persist
-    container_name: musika-container
+    image: plurdist/musika:latest
+    container_name: blah
     volumes:
-      - /home/ericbrowne/repos/ai-music-projects/musika:/musika  
-      - /mnt/c/users/eric/Documents/musika_outputs:/output  
+      - "c:/repos/AI-Music-Toolkit/docker/musika_outputs:/output"  # Only mount the output directory
     ports:
-      - "7860:7860"
-      - "6006:6006"
+      - "7860:7860"  # Expose Gradio web UI (if applicable)
+      - "6006:6006"  # Expose TensorBoard (if applicable)
     stdin_open: true
     tty: true
     deploy:
