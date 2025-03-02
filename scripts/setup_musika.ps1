@@ -18,18 +18,6 @@ if (-Not $dockerStatus) {
     Exit 1
 }
 
-# Check if WSL2 backend is enabled for GPU support
-$wslStatus = wsl -l -v 2>$null
-if (-Not ($wslStatus -match "WSL2")) {
-    Write-Host "WSL2 is not enabled. GPU support may not work. Enable WSL2 for best performance."
-}
-
-# Check if NVIDIA Container Toolkit is installed (needed for GPU)
-$gpuSupportCheck = docker run --rm --gpus all nvidia/cuda:11.2.2-base nvidia-smi 2>$null
-if ($gpuSupportCheck -match "failed") {
-    Write-Host "NVIDIA Container Toolkit is not detected! GPU acceleration may not work."
-}
-
 # Check if Docker Compose is available
 if (-Not (Get-Command "docker-compose" -ErrorAction SilentlyContinue) -and -Not (Get-Command "docker compose" -ErrorAction SilentlyContinue)) {
     Write-Host "Docker Compose is not installed. Install it before proceeding."
@@ -49,30 +37,15 @@ if (-Not (Test-Path $composeFile)) {
     Exit 1
 }
 
-# Remove any existing containers with conflicting names
-Write-Host "Cleaning up old Musika containers..."
-$existingContainers = docker ps -a --format "{{.ID}} {{.Names}}"
-$existingContainers -split "`n" | ForEach-Object {
-    $containerID, $containerNameFound = $_ -split " "
-    if ($containerNameFound -match "musika-container|blah") {
-        docker rm -f $containerID
-        Write-Host "Removed container: $containerNameFound"
-    }
-}
-
-# Remove orphaned volumes & networks
-docker volume prune -f
-docker network prune -f
-
 # Pull the latest Musika image
 Write-Host "Pulling latest Musika image..."
 docker pull $dockerImage
 
-# Start the container with correct name
+# Start the container
 Write-Host "Starting Musika container..."
 docker compose up -d --force-recreate --remove-orphans
 
-# Wait & Verify the Container is Running
+# Wait & Verify if the Container is Running
 Start-Sleep -Seconds 3
 $runningContainer = docker ps --filter "name=$containerName" -q
 if ($runningContainer) {
@@ -81,9 +54,5 @@ if ($runningContainer) {
     Write-Host "Something went wrong. Check logs: docker logs $containerName"
     Exit 1
 }
-
-# Verify GPU Availability Inside the Container
-Write-Host "Checking GPU availability inside the container..."
-docker exec -it $containerName python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
 
 Write-Host "Setup complete! You can now use Musika."
