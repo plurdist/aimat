@@ -9,6 +9,8 @@ OUTPUT_DIR = os.path.join(os.path.expanduser("~"), "musika_outputs")
 DOCKER_CONTAINER = "musika-container"
 DOCKER_IMAGE = "plurdist/musika:latest"
 
+print(OUTPUT_DIR)
+
 # Model lookup dictionary
 MODEL_PATHS = {
     "techno": "checkpoints/techno",
