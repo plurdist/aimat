@@ -3,7 +3,7 @@
 # Set script directory to ensure it runs from anywhere
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOCKER_DIR="$SCRIPT_DIR/../docker"
-LISTENER_SCRIPT="$SCRIPT_DIR/listener.py"  # Adjust to actual listener script path
+LISTENER_SCRIPT="$SCRIPT_DIR/osc_listener.py"  # Adjust to actual listener script path
 CONDA_ENV="aimt"  # Your Conda environment name
 
 # Define Docker image and container details
