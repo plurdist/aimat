@@ -44,11 +44,13 @@ def start_container():
         print(f"Removing existing Musika container: {existing_container}")
         subprocess.run(["docker", "rm", "-f", existing_container], check=True)
 
-    # Start a fresh Musika container with GPU support
+    # Start a fresh Musika container with GPU support and volume mounting
     print("Starting Musika container with GPU support...")
     subprocess.run([
         "docker", "run", "--rm", "-dit", "--gpus", "all",
-        "--name", DOCKER_CONTAINER, DOCKER_IMAGE
+        "--name", DOCKER_CONTAINER,
+        "-v", f"{OUTPUT_DIR}:/output",  # MOUNT VOLUME HERE
+        DOCKER_IMAGE
     ], check=True)
     time.sleep(2)  # Give it time to initialize
 
