@@ -13,14 +13,14 @@ RUN apt-get update && apt-get install -y \
 # Clone the Musika repository
 RUN git clone https://github.com/marcoppasini/musika.git /musika
 
-# Copy the custom script into the container
+# Copy custom scripts into the container
 COPY scripts/download_models.py /musika/download_models.py
 
 # Copy requirements and install Python dependencies
 COPY requirements-docker.txt /tmp/
 RUN pip3 install --no-cache-dir -r /tmp/requirements-docker.txt
 
-# Step 5: Run the new script to download models
+# Run script to download models (one-time setup)
 RUN python /musika/download_models.py
 
 # Expose required ports
@@ -29,5 +29,5 @@ EXPOSE 7860 6006
 # Set up working directory
 WORKDIR /musika
 
-# Default command (keeping it idle, NOT running the listener)
+# Default command to keep container idle (for manual execution)
 CMD ["bash"]
