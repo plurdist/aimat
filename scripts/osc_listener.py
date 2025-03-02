@@ -34,10 +34,23 @@ def is_container_running():
 
 # Start Docker container if not already running
 def start_container():
-    if not is_container_running():
-        print("Starting Musika container...")
-        subprocess.run(["docker", "run", "--rm", "-dit", "--name", DOCKER_CONTAINER, DOCKER_IMAGE], check=True)
-        time.sleep(2)  # Give it time to initialize
+    # Check if a container with the same name already exists
+    existing_container = subprocess.run(
+        ["docker", "ps", "-a", "--filter", f"name={DOCKER_CONTAINER}", "--format", "{{.ID}}"],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    ).stdout.strip()
+
+    if existing_container:
+        print(f"Removing existing Musika container: {existing_container}")
+        subprocess.run(["docker", "rm", "-f", existing_container], check=True)
+
+    # Start a fresh Musika container with GPU support
+    print("Starting Musika container with GPU support...")
+    subprocess.run([
+        "docker", "run", "--rm", "-dit", "--gpus", "all",
+        "--name", DOCKER_CONTAINER, DOCKER_IMAGE
+    ], check=True)
+    time.sleep(2)  # Give it time to initialize
 
 # Stop Docker container after generation
 def stop_container():
