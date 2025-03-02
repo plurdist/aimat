@@ -1,7 +1,11 @@
+# Ensure the script runs from its directory
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+Set-Location $scriptDir
+
 # Define Docker image and container details
 $dockerImage = "plurdist/musika:latest"
 $containerName = "musika-container"
-$composeFile = "docker-compose.yml"
+$composeFile = "$scriptDir/docker-compose.yml"
 
 Write-Host "Checking environment setup..."
 
@@ -25,13 +29,13 @@ if (-Not (Get-Command "docker-compose" -ErrorAction SilentlyContinue) -and -Not 
 }
 
 # Ensure the output directory exists
-$outputPath = "$(pwd)\musika_outputs"
+$outputPath = "$HOME/musika_outputs"
 if (-Not (Test-Path $outputPath)) {
     New-Item -ItemType Directory -Path $outputPath | Out-Null
     Write-Host "Created output directory: $outputPath"
 }
 
-# Check if docker-compose.yml exists before running
+# Check if docker-compose.yml exists
 if (-Not (Test-Path $composeFile)) {
     Write-Host "Missing docker-compose.yml file! Ensure it is in the correct location."
     Exit 1
@@ -41,18 +45,11 @@ if (-Not (Test-Path $composeFile)) {
 Write-Host "Pulling latest Musika image..."
 docker pull $dockerImage
 
-# Start the container
-Write-Host "Starting Musika container..."
-docker compose up -d --force-recreate --remove-orphans
+Write-Host "Starting Musika container only when needed..."
+Write-Host "NOTE: The container will be started automatically by the listener script when needed."
 
-# Wait & Verify if the Container is Running
-Start-Sleep -Seconds 3
-$runningContainer = docker ps --filter "name=$containerName" -q
-if ($runningContainer) {
-    Write-Host "Musika container is running successfully!"
-} else {
-    Write-Host "Something went wrong. Check logs: docker logs $containerName"
-    Exit 1
-}
+# Start the listener script automatically
+Write-Host "Starting the OSC Listener script..."
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "conda activate aimt; python scripts/listener.py"
 
-Write-Host "Setup complete! You can now use Musika."
+Write-Host "Setup complete. Musika is ready to use!"

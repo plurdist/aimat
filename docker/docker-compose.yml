@@ -3,7 +3,7 @@ services:
     image: plurdist/musika:latest
     container_name: musika-container
     volumes:
-      - "c:/repos/AI-Music-Toolkit/docker/musika_outputs:/output"  
+      - "${HOME}/musika_outputs:/output"  
     ports:
       - "7860:7860"
       - "6006:6006"  

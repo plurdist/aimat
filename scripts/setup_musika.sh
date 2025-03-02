@@ -1,9 +1,15 @@
 #!/bin/bash
 
+# Set script directory to ensure it runs from anywhere
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DOCKER_DIR="$SCRIPT_DIR/../docker"
+LISTENER_SCRIPT="$SCRIPT_DIR/listener.py"  # Adjust to actual listener script path
+CONDA_ENV="aimt"  # Your Conda environment name
+
 # Define Docker image and container details
 dockerImage="plurdist/musika:latest"
 containerName="musika-container"
-composeFile="docker-compose.yml"
+composeFile="$DOCKER_DIR/docker-compose.yml"
 
 echo "Checking environment setup..."
 
@@ -26,35 +32,51 @@ if ! command -v docker-compose &> /dev/null && ! command -v docker compose &> /d
 fi
 
 # Ensure the output directory exists
-outputPath="$(pwd)/musika_outputs"
+outputPath="${HOME}/musika_outputs"
 if [ ! -d "$outputPath" ]; then
     mkdir -p "$outputPath"
     echo "Created output directory: $outputPath"
 fi
 
-# Check if docker-compose.yml exists before running
+# Check if docker-compose.yml exists in the correct directory
 if [ ! -f "$composeFile" ]; then
-    echo "Missing docker-compose.yml file! Ensure it is in the correct location."
+    echo "Missing docker-compose.yml file! Ensure it is in $DOCKER_DIR"
     exit 1
 fi
+
+# Change to the correct Docker directory
+cd "$DOCKER_DIR" || exit
 
 # Pull the latest Musika image
 echo "Pulling latest Musika image..."
 docker pull "$dockerImage"
 
-# Start the container
-echo "Starting Musika container..."
-docker compose up -d --force-recreate --remove-orphans
+# Create (but do not start) the container
+echo "Creating Musika container..."
+docker compose up --no-start --force-recreate --remove-orphans
 
-# Wait & Verify if the Container is Running
-sleep 3
-runningContainer=$(docker ps --filter "name=$containerName" -q)
+# Verify if the Container is Created
+runningContainer=$(docker ps -a --filter "name=$containerName" -q)
 
 if [ -n "$runningContainer" ]; then
-    echo "Musika container is running successfully."
+    echo "Musika container has been created successfully."
 else
     echo "Something went wrong. Check logs: docker logs $containerName"
     exit 1
 fi
 
-echo "Setup complete. You can now use Musika."
+# Activate Conda environment and start listener script
+echo "Activating Conda environment and starting listener..."
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "$CONDA_ENV"
+
+if [ $? -eq 0 ]; then
+    echo "Conda environment activated successfully."
+    echo "Starting listener script..."
+    python "$LISTENER_SCRIPT"
+else
+    echo "Failed to activate Conda environment. Ensure it is installed and the environment exists."
+    exit 1
+fi
+
+echo "Setup complete. The listener is running, waiting for OSC messages..."
