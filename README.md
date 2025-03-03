@@ -1,9 +1,13 @@
-### AI Music Artist Toolkit / AIMAT
-**Modular AI-powered music generation framework**  
+### AI Music Artist Toolkit (AIMAT)
+**A modular framework for experimenting with AI in music**  
 
-The **AI Music Artist Toolkit** or **AIMAT** is designed for **modular AI-powered music generation**, integrating different generative models within a single streamlined workflow. Currently, it supports **Musika**, a deep learning model for generating high-quality audio. The system is built for flexibility, allowing for future expansions to include additional AI music models.  
+The AI Music Artist Toolkit (AIMAT) is a flexible framework designed to make working with AI in music easier and more practical for artists, musicians, and creative technologists. By bringing different generative models into a single, reusable workflow, AIMAT lowers some of the technical barriers that might otherwise make these tools difficult to access or experiment with.
 
-This repository provides **Docker-based deployment** with **OSC (Open Sound Control) integration**, allowing tools like **Max/MSP, PD, Max for Live** or other OSC-compatible applications to trigger AI-powered music generation.  
+Beyond being just a tool, AIMAT is also about preserving and repurposing interesting AI music projects, keeping them in one place where they can be explored in a practical, creative setting. It’s designed to help artists experiment with AI-generated sound, explore different parameters, and find new possibilities they might not have come across otherwise.
+
+At the moment, AIMAT supports Musika, a deep learning model for generating high-quality audio, with plans to include other AI music models in the future. It integrates with Max/MSP, PD, Max for Live, and other OSC-enabled applications, making AI-generated music easier to incorporate into creative workflows.
+
+This repository provides **Docker-based deployment** with **OSC (Open Sound Control) integration**, allowing tools like **Max/MSP, PD, Max for Live** or other OSC-compatible applications to trigger AI-powered music generation. 
 
 ---
 
