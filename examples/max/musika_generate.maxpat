@@ -10,7 +10,7 @@
 		}
 ,
 		"classnamespace" : "box",
-		"rect" : [ 484.0, 284.0, 640.0, 476.0 ],
+		"rect" : [ 1139.0, 301.0, 640.0, 476.0 ],
 		"bglocked" : 0,
 		"openinpresentation" : 0,
 		"default_fontsize" : 12.0,
@@ -270,8 +270,8 @@
 					"maxclass" : "newobj",
 					"numinlets" : 1,
 					"numoutlets" : 0,
-					"patching_rect" : [ 84.0, 242.0, 165.0, 22.0 ],
-					"text" : "udpsend 172.28.55.121 5005"
+					"patching_rect" : [ 84.0, 242.0, 158.0, 22.0 ],
+					"text" : "udpsend 192.168.8.28 5005"
 				}
 
 			}
