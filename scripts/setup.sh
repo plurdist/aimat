@@ -3,8 +3,9 @@
 # Set script directory to ensure it runs from anywhere
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOCKER_DIR="$SCRIPT_DIR/../docker"
-LISTENER_SCRIPT="$SCRIPT_DIR/osc_listener.py"  # Adjust to actual listener script path
-CONDA_ENV="aimt"  # Your Conda environment name
+ENV_FILE="$SCRIPT_DIR/environment.yml"
+LISTENER_SCRIPT="$SCRIPT_DIR/osc_listener.py"  
+CONDA_ENV="aimt" 
 
 # Define Docker image and container details
 dockerImage="plurdist/musika:latest"
@@ -43,14 +44,7 @@ if ! command -v docker-compose &> /dev/null && ! command -v docker compose &> /d
     exit 1
 fi
 
-# Ensure the output directory exists
-outputPath="${HOME}/musika_outputs"
-if [ ! -d "$outputPath" ]; then
-    mkdir -p "$outputPath"
-    print_message "SUCCESS" "Created output directory: $outputPath"
-fi
-
-# Check if docker-compose.yml exists in the correct directory
+# Ensure docker-compose.yml exists in the correct directory
 if [ ! -f "$composeFile" ]; then
     print_message "ERROR" "Missing docker-compose.yml file! Ensure it is in $DOCKER_DIR"
     exit 1
@@ -63,8 +57,8 @@ cd "$DOCKER_DIR" || exit
 print_message "INFO" "Pulling latest Musika image..."
 docker pull "$dockerImage"
 
-# Create (but do not start) the container
-print_message "INFO" "Creating Musika container..."
+# Create (but do not start) the container using docker-compose
+print_message "INFO" "Creating Musika container using docker-compose..."
 docker compose up --no-start --force-recreate --remove-orphans
 
 # Verify if the Container is Created
@@ -77,18 +71,8 @@ else
     exit 1
 fi
 
-# Activate Conda environment and start listener script
-print_message "INFO" "Activating Conda environment and starting listener..."
-source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate "$CONDA_ENV"
-
-if [ $? -eq 0 ]; then
-    print_message "SUCCESS" "Conda environment activated successfully."
-    print_message "INFO" "Starting listener script..."
-    python "$LISTENER_SCRIPT"
-else
-    print_message "ERROR" "Failed to activate Conda environment. Ensure it is installed and the environment exists."
-    exit 1
-fi
+# Start listener script
+print_message "INFO" "Starting listener script..."
+python "$LISTENER_SCRIPT"
 
 print_message "SUCCESS" "Setup complete! The listener is running, waiting for OSC messages..."

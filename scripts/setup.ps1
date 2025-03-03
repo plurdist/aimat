@@ -1,8 +1,9 @@
 # Set script directory to ensure it runs from anywhere
 $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 $DOCKER_DIR = Join-Path $SCRIPT_DIR "..\docker"
-$LISTENER_SCRIPT = Join-Path $SCRIPT_DIR "osc_listener.py"  # Adjust to actual listener script path
-$CONDA_ENV = "aimt"  # Your Conda environment name
+$ENV_FILE = Join-Path $SCRIPT_DIR "environment.yml"
+$LISTENER_SCRIPT = Join-Path $SCRIPT_DIR "osc_listener.py"  
+$CONDA_ENV = "aimt" 
 
 # Define Docker image and container details
 $dockerImage = "plurdist/musika:latest"
@@ -44,14 +45,7 @@ if (-Not (Get-Command "docker-compose" -ErrorAction SilentlyContinue) -and -Not 
     Exit 1
 }
 
-# Ensure the output directory exists
-$outputPath = Join-Path $HOME "musika_outputs"
-if (-Not (Test-Path $outputPath)) {
-    New-Item -ItemType Directory -Path $outputPath | Out-Null
-    Write-ColoredMessage "Created output directory: $outputPath" "SUCCESS"
-}
-
-# Check if docker-compose.yml exists in the correct directory
+# Ensure docker-compose.yml exists in the correct directory
 if (-Not (Test-Path $composeFile)) {
     Write-ColoredMessage "Missing docker-compose.yml file! Ensure it is in $DOCKER_DIR" "ERROR"
     Exit 1
@@ -64,8 +58,8 @@ Set-Location -Path $DOCKER_DIR
 Write-ColoredMessage "Pulling latest Musika image..." "INFO"
 docker pull $dockerImage
 
-# Create (but do not start) the container
-Write-ColoredMessage "Creating Musika container..." "INFO"
+# Create (but do not start) the container using docker-compose
+Write-ColoredMessage "Creating Musika container using docker-compose..." "INFO"
 docker compose up --no-start --force-recreate --remove-orphans
 
 # Verify if the container is created
@@ -77,10 +71,23 @@ if ($runningContainer) {
     Exit 1
 }
 
-# Activate Conda environment and start listener script
-Write-ColoredMessage "Activating Conda environment and starting listener..." "INFO"
+# Ensure Conda is installed
+if (-Not (Get-Command "conda" -ErrorAction SilentlyContinue)) {
+    Write-ColoredMessage "Conda is not installed! Please install Miniconda or Anaconda." "ERROR"
+    Exit 1
+}
 
-# Ensure Conda is initialized in PowerShell
+# Ensure Conda environment exists
+$existingEnv = conda env list | Select-String -Pattern "$CONDA_ENV"
+if (-Not $existingEnv) {
+    Write-ColoredMessage "Creating Conda environment from environment.yml..." "INFO"
+    conda env create -f "$ENV_FILE"
+} else {
+    Write-ColoredMessage "Conda environment '$CONDA_ENV' already exists." "SUCCESS"
+}
+
+# Activate Conda environment
+Write-ColoredMessage "Activating Conda environment..." "INFO"
 $condaBase = & conda info --base
 $condaProfile = Join-Path $condaBase "shell\condabin\conda-hook.ps1"
 
@@ -93,13 +100,7 @@ if (Test-Path $condaProfile) {
 }
 
 # Start listener script
-if ($?) {
-    Write-ColoredMessage "Conda environment activated successfully." "SUCCESS"
-    Write-ColoredMessage "Starting listener script..." "INFO"
-    python $LISTENER_SCRIPT
-} else {
-    Write-ColoredMessage "Failed to activate Conda environment. Ensure it is installed and the environment exists." "ERROR"
-    Exit 1
-}
+Write-ColoredMessage "Starting listener script..." "INFO"
+python $LISTENER_SCRIPT
 
 Write-ColoredMessage "Setup complete! The listener is running, waiting for OSC messages..." "SUCCESS"
