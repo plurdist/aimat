@@ -1,7 +1,7 @@
 # Set script directory to ensure it runs from anywhere
 $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 $DOCKER_DIR = Join-Path $SCRIPT_DIR "..\docker"
-$ENV_FILE = Join-Path $SCRIPT_DIR "environment.yml"
+$ENV_FILE = Join-Path $SCRIPT_DIR "..\environment.yml"
 $LISTENER_SCRIPT = Join-Path $SCRIPT_DIR "osc_listener.py"  
 $CONDA_ENV = "aimat" 
 
