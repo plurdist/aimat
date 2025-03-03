@@ -50,10 +50,10 @@ if [ ! -f "$composeFile" ]; then
     exit 1
 fi
 
-# Change to the correct Docker directory
+# Change to correct Docker directory
 cd "$DOCKER_DIR" || exit
 
-# Pull the latest Musika image
+# Pull latest Musika image
 print_message "INFO" "Pulling latest Musika image..."
 if ! docker pull "$dockerImage"; then
     print_message "ERROR" "Failed to pull Musika image."

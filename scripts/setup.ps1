@@ -2,7 +2,7 @@
 # setup.ps1
 # ----------------------------
 
-# 1) Define the Write-ColoredMessage function at the top:
+# Define Write-ColoredMessage function
 function Write-ColoredMessage {
     param(
         [string]$Message,
@@ -37,39 +37,37 @@ $composeFile     = Join-Path $DOCKER_DIR "docker-compose.yml"
 
 Write-ColoredMessage "Checking environment setup..." "INFO"
 
-# --------------------------------------------------------------------
-# 2) Check if Docker is installed
-# --------------------------------------------------------------------
+# Check if Docker installed
+
 if (-Not (Get-Command "docker" -ErrorAction SilentlyContinue)) {
     Write-ColoredMessage "Docker is not installed! Please install Docker Desktop and restart your system." "ERROR"
     Exit 1
 }
 
-# 3) Check if Docker is running
+# Check if Docker is running
 docker info --format "{{.ServerVersion}}" | Out-Null
 if ($LASTEXITCODE -ne 0) {
     Write-ColoredMessage "Docker is not running! Please start Docker Desktop." "ERROR"
     Exit 1
 }
 
-# 4) Check if Docker Compose is available
-#    Could be either 'docker-compose' or 'docker compose'
+# Check if Docker Compose is available
 if (-Not (Get-Command "docker-compose" -ErrorAction SilentlyContinue) -and `
     -Not (Get-Command "docker compose" -ErrorAction SilentlyContinue)) {
     Write-ColoredMessage "Docker Compose is not installed! Install it before proceeding." "ERROR"
     Exit 1
 }
 
-# 5) Ensure docker-compose.yml exists
+# Ensure docker-compose.yml exists
 if (-Not (Test-Path $composeFile)) {
     Write-ColoredMessage "Missing docker-compose.yml file! Ensure it is in $DOCKER_DIR" "ERROR"
     Exit 1
 }
 
-# 6) Change directory to the Docker folder
+# Change directory to the Docker folder
 Set-Location -Path $DOCKER_DIR
 
-# 7) Pull the latest Musika image
+# Pull the latest Musika image
 Write-ColoredMessage "Pulling latest Musika image..." "INFO"
 docker pull $dockerImage | Out-Null
 if ($LASTEXITCODE -ne 0) {
@@ -77,18 +75,15 @@ if ($LASTEXITCODE -ne 0) {
     Exit 1
 }
 
-# 8) Create (but do not start) the container using docker compose
+# Create (but do not start) the container using docker compose
 Write-ColoredMessage "Creating Musika container using docker-compose..." "INFO"
-
-# You can call either 'docker compose up' or 'docker-compose up'; 
-# if you have Docker Desktop >= 2.3, 'docker compose' is often recommended:
 docker compose up --no-start --force-recreate --remove-orphans | Out-Null
 if ($LASTEXITCODE -ne 0) {
     Write-ColoredMessage "Failed to create Musika container." "ERROR"
     Exit 1
 }
 
-# 9) Verify container creation
+# Verify container creation
 $runningContainer = docker ps -a --filter "name=$containerName" -q
 if ($runningContainer) {
     Write-ColoredMessage "Musika container has been created successfully." "SUCCESS"
@@ -97,15 +92,14 @@ if ($runningContainer) {
     Exit 1
 }
 
-# --------------------------------------------------------------------
-# 10) Check Conda
-# --------------------------------------------------------------------
+# Check Conda
+
 if (-Not (Get-Command "conda" -ErrorAction SilentlyContinue)) {
     Write-ColoredMessage "Conda is not installed! Please install Miniconda or Anaconda." "ERROR"
     Exit 1
 }
 
-# 11) Check if the Conda environment exists
+# Check if the Conda environment exists
 $existingEnv = conda env list | Select-String -Pattern "$CONDA_ENV"
 if (-Not $existingEnv) {
     Write-ColoredMessage "Creating Conda environment from environment.yml..." "INFO"
@@ -118,7 +112,7 @@ if (-Not $existingEnv) {
     Write-ColoredMessage "Conda environment '$CONDA_ENV' already exists." "SUCCESS"
 }
 
-# 12) Activate Conda environment
+# Activate Conda environment
 Write-ColoredMessage "Activating Conda environment..." "INFO"
 $condaBase = & conda info --base
 $condaProfile = Join-Path $condaBase "shell\condabin\conda-hook.ps1"
@@ -133,9 +127,7 @@ if (Test-Path $condaProfile) {
 
 Write-ColoredMessage "Conda environment activated successfully." "SUCCESS"
 
-# --------------------------------------------------------------------
-# 13) Determine Local IP
-# --------------------------------------------------------------------
+# Determine Local IP
 Write-ColoredMessage "Determining local IP address..." "INFO"
 $LOCAL_IP = (Get-NetIPAddress -AddressFamily IPv4 |
              Where-Object { $_.InterfaceAlias -notmatch "Loopback" } |
@@ -149,9 +141,7 @@ if (-not $LOCAL_IP) {
 
 Write-ColoredMessage "Local IP address detected: $LOCAL_IP" "SUCCESS"
 
-# --------------------------------------------------------------------
-# 14) Start listener script
-# --------------------------------------------------------------------
+# Start listener script
 Write-ColoredMessage "Starting listener script..." "INFO"
 
 # Run Python script and wait for completion
