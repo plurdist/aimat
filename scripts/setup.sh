@@ -3,7 +3,7 @@
 # Set script directory to ensure it runs from anywhere
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOCKER_DIR="$SCRIPT_DIR/../docker"
-ENV_FILE="$SCRIPT_DIR/environment.yml"
+ENV_FILE="$SCRIPT_DIR/../environment.yml"
 LISTENER_SCRIPT="$SCRIPT_DIR/osc_listener.py" 
 CONDA_ENV="aimt"  
 
