@@ -5,7 +5,7 @@ The AI Music Artist Toolkit (AIMAT) is a flexible framework designed to make wor
 
 Beyond being just a tool, AIMAT is also about preserving and repurposing interesting AI music projects, keeping them in one place where they can be explored in a practical, creative setting. It’s designed to help artists experiment with AI-generated sound, explore different parameters, and find new possibilities they might not have come across otherwise.
 
-At the moment, AIMAT supports Musika, a deep learning model for generating high-quality audio, with plans to include other AI music models in the future. It integrates with Max/MSP, PD, Max for Live, and other OSC-enabled applications, making AI-generated music easier to incorporate into creative workflows.
+At the moment, AIMAT supports **Musika**, a deep learning model for generating high-quality audio, with plans to include other AI music models in the future. It integrates with **Max/MSP, PD, Max for Live**, and other OSC-enabled applications, making AI-generated music easier to incorporate into creative workflows.
 
 ---
 
