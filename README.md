@@ -102,7 +102,7 @@ Run:
 ```powershell
 conda env list
 ```
-If `aimt` is missing, recreate it:  
+If `aimat` is missing, recreate it:  
 ```powershell
 conda env create -f environment.yml
 ```
