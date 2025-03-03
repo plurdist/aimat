@@ -9,24 +9,38 @@ $dockerImage = "plurdist/musika:latest"
 $containerName = "musika-container"
 $composeFile = Join-Path $DOCKER_DIR "docker-compose.yml"
 
-Write-Host "Checking environment setup..."
+function Write-ColoredMessage {
+    param(
+        [string]$Message,
+        [string]$Color
+    )
+    $Colors = @{
+        "INFO" = "Cyan"
+        "SUCCESS" = "Green"
+        "WARNING" = "Yellow"
+        "ERROR" = "Red"
+    }
+    Write-Host "[$Color] $Message" -ForegroundColor $Colors[$Color]
+}
+
+Write-ColoredMessage "Checking environment setup..." "INFO"
 
 # Check if Docker is installed
 if (-Not (Get-Command "docker" -ErrorAction SilentlyContinue)) {
-    Write-Host "Docker is not installed. Please install Docker Desktop and restart your system."
+    Write-ColoredMessage "Docker is not installed! Please install Docker Desktop and restart your system." "ERROR"
     Exit 1
 }
 
 # Check if Docker is running
 $dockerStatus = docker info --format "{{.ServerVersion}}" 2>$null
 if (-Not $dockerStatus) {
-    Write-Host "Docker is not running. Please start Docker Desktop."
+    Write-ColoredMessage "Docker is not running! Please start Docker Desktop." "ERROR"
     Exit 1
 }
 
 # Check if Docker Compose is available
 if (-Not (Get-Command "docker-compose" -ErrorAction SilentlyContinue) -and -Not (Get-Command "docker compose" -ErrorAction SilentlyContinue)) {
-    Write-Host "Docker Compose is not installed. Install it before proceeding."
+    Write-ColoredMessage "Docker Compose is not installed! Install it before proceeding." "ERROR"
     Exit 1
 }
 
@@ -34,12 +48,12 @@ if (-Not (Get-Command "docker-compose" -ErrorAction SilentlyContinue) -and -Not 
 $outputPath = Join-Path $HOME "musika_outputs"
 if (-Not (Test-Path $outputPath)) {
     New-Item -ItemType Directory -Path $outputPath | Out-Null
-    Write-Host "Created output directory: $outputPath"
+    Write-ColoredMessage "Created output directory: $outputPath" "SUCCESS"
 }
 
 # Check if docker-compose.yml exists in the correct directory
 if (-Not (Test-Path $composeFile)) {
-    Write-Host "Missing docker-compose.yml file! Ensure it is in $DOCKER_DIR"
+    Write-ColoredMessage "Missing docker-compose.yml file! Ensure it is in $DOCKER_DIR" "ERROR"
     Exit 1
 }
 
@@ -47,24 +61,24 @@ if (-Not (Test-Path $composeFile)) {
 Set-Location -Path $DOCKER_DIR
 
 # Pull the latest Musika image
-Write-Host "Pulling latest Musika image..."
+Write-ColoredMessage "Pulling latest Musika image..." "INFO"
 docker pull $dockerImage
 
 # Create (but do not start) the container
-Write-Host "Creating Musika container..."
+Write-ColoredMessage "Creating Musika container..." "INFO"
 docker compose up --no-start --force-recreate --remove-orphans
 
 # Verify if the container is created
 $runningContainer = docker ps -a --filter "name=$containerName" -q
 if ($runningContainer) {
-    Write-Host "Musika container has been created successfully."
+    Write-ColoredMessage "Musika container has been created successfully." "SUCCESS"
 } else {
-    Write-Host "Something went wrong. Check logs: docker logs $containerName"
+    Write-ColoredMessage "Something went wrong. Check logs: docker logs $containerName" "ERROR"
     Exit 1
 }
 
 # Activate Conda environment and start listener script
-Write-Host "Activating Conda environment and starting listener..."
+Write-ColoredMessage "Activating Conda environment and starting listener..." "INFO"
 
 # Ensure Conda is initialized in PowerShell
 $condaBase = & conda info --base
@@ -74,18 +88,18 @@ if (Test-Path $condaProfile) {
     . $condaProfile
     conda activate $CONDA_ENV
 } else {
-    Write-Host "Failed to initialize Conda. Ensure Conda is installed and configured."
+    Write-ColoredMessage "Failed to initialize Conda. Ensure Conda is installed and configured." "ERROR"
     Exit 1
 }
 
 # Start listener script
 if ($?) {
-    Write-Host "Conda environment activated successfully."
-    Write-Host "Starting listener script..."
+    Write-ColoredMessage "Conda environment activated successfully." "SUCCESS"
+    Write-ColoredMessage "Starting listener script..." "INFO"
     python $LISTENER_SCRIPT
 } else {
-    Write-Host "Failed to activate Conda environment. Ensure it is installed and the environment exists."
+    Write-ColoredMessage "Failed to activate Conda environment. Ensure it is installed and the environment exists." "ERROR"
     Exit 1
 }
 
-Write-Host "Setup complete. The listener is running, waiting for OSC messages..."
+Write-ColoredMessage "Setup complete! The listener is running, waiting for OSC messages..." "SUCCESS"

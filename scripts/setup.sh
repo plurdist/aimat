@@ -11,23 +11,35 @@ dockerImage="plurdist/musika:latest"
 containerName="musika-container"
 composeFile="$DOCKER_DIR/docker-compose.yml"
 
-echo "Checking environment setup..."
+# Function to print colored messages
+print_message() {
+    local color=$1
+    local message=$2
+    case $color in
+        "INFO") echo -e "\e[36m[INFO] $message\e[0m" ;;      # Cyan
+        "SUCCESS") echo -e "\e[32m[SUCCESS] $message\e[0m" ;; # Green
+        "WARNING") echo -e "\e[33m[WARNING] $message\e[0m" ;; # Yellow
+        "ERROR") echo -e "\e[31m[ERROR] $message\e[0m" ;;     # Red
+    esac
+}
+
+print_message "INFO" "Checking environment setup..."
 
 # Check if Docker is installed
 if ! command -v docker &> /dev/null; then
-    echo "Docker is not installed. Please install Docker Desktop and restart your system."
+    print_message "ERROR" "Docker is not installed! Please install Docker Desktop and restart your system."
     exit 1
 fi
 
 # Check if Docker is running
 if ! docker info &> /dev/null; then
-    echo "Docker is not running. Please start Docker Desktop."
+    print_message "ERROR" "Docker is not running! Please start Docker Desktop."
     exit 1
 fi
 
 # Check if Docker Compose is available
 if ! command -v docker-compose &> /dev/null && ! command -v docker compose &> /dev/null; then
-    echo "Docker Compose is not installed. Install it before proceeding."
+    print_message "ERROR" "Docker Compose is not installed! Install it before proceeding."
     exit 1
 fi
 
@@ -35,12 +47,12 @@ fi
 outputPath="${HOME}/musika_outputs"
 if [ ! -d "$outputPath" ]; then
     mkdir -p "$outputPath"
-    echo "Created output directory: $outputPath"
+    print_message "SUCCESS" "Created output directory: $outputPath"
 fi
 
 # Check if docker-compose.yml exists in the correct directory
 if [ ! -f "$composeFile" ]; then
-    echo "Missing docker-compose.yml file! Ensure it is in $DOCKER_DIR"
+    print_message "ERROR" "Missing docker-compose.yml file! Ensure it is in $DOCKER_DIR"
     exit 1
 fi
 
@@ -48,35 +60,35 @@ fi
 cd "$DOCKER_DIR" || exit
 
 # Pull the latest Musika image
-echo "Pulling latest Musika image..."
+print_message "INFO" "Pulling latest Musika image..."
 docker pull "$dockerImage"
 
 # Create (but do not start) the container
-echo "Creating Musika container..."
+print_message "INFO" "Creating Musika container..."
 docker compose up --no-start --force-recreate --remove-orphans
 
 # Verify if the Container is Created
 runningContainer=$(docker ps -a --filter "name=$containerName" -q)
 
 if [ -n "$runningContainer" ]; then
-    echo "Musika container has been created successfully."
+    print_message "SUCCESS" "Musika container has been created successfully."
 else
-    echo "Something went wrong. Check logs: docker logs $containerName"
+    print_message "ERROR" "Something went wrong. Check logs: docker logs $containerName"
     exit 1
 fi
 
 # Activate Conda environment and start listener script
-echo "Activating Conda environment and starting listener..."
+print_message "INFO" "Activating Conda environment and starting listener..."
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate "$CONDA_ENV"
 
 if [ $? -eq 0 ]; then
-    echo "Conda environment activated successfully."
-    echo "Starting listener script..."
+    print_message "SUCCESS" "Conda environment activated successfully."
+    print_message "INFO" "Starting listener script..."
     python "$LISTENER_SCRIPT"
 else
-    echo "Failed to activate Conda environment. Ensure it is installed and the environment exists."
+    print_message "ERROR" "Failed to activate Conda environment. Ensure it is installed and the environment exists."
     exit 1
 fi
 
-echo "Setup complete. The listener is running, waiting for OSC messages..."
+print_message "SUCCESS" "Setup complete! The listener is running, waiting for OSC messages..."
