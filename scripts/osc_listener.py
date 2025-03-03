@@ -2,12 +2,13 @@ import os
 import socket
 import subprocess
 import time
+import platform
 from pythonosc import dispatcher, osc_server, udp_client
 
 # Set up paths (cross-platform)
 OUTPUT_DIR = os.path.join(os.path.expanduser("~"), "musika_outputs")
 DOCKER_CONTAINER = "musika-container"
-DOCKER_IMAGE = "plurdist/musika:latest"
+DOCKER_IMAGE = "plurdist/aimat-musika:latest"
 
 # Model lookup dictionary
 MODEL_PATHS = {
@@ -16,7 +17,20 @@ MODEL_PATHS = {
 }
 
 # Dynamically determine local machine IP
-MAX_HOST = socket.gethostbyname(socket.gethostname())
+def get_local_ip():
+    try:
+        system = platform.system()
+        if system == "Darwin":  # macOS
+            return subprocess.check_output(["ipconfig", "getifaddr", "en0"]).decode().strip()
+        elif system == "Linux":
+            return subprocess.check_output(["hostname", "-I"]).decode().split()[0]  # First IP
+        else:  # Windows or fallback
+            return socket.gethostbyname(socket.gethostname())
+    except Exception:
+        return "127.0.0.1"  # Safe fallback
+
+MAX_HOST = get_local_ip()
+print(f"Detected local IP: {MAX_HOST}")
 MAX_PORT = int(os.getenv("OSC_PORT", 7400))  # Allow dynamic port override
 client = udp_client.SimpleUDPClient(MAX_HOST, MAX_PORT)
 
