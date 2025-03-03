@@ -4,8 +4,8 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOCKER_DIR="$SCRIPT_DIR/../docker"
 ENV_FILE="$SCRIPT_DIR/environment.yml"
-LISTENER_SCRIPT="$SCRIPT_DIR/osc_listener.py"  
-CONDA_ENV="aimt" 
+LISTENER_SCRIPT="$SCRIPT_DIR/osc_listener.py" 
+CONDA_ENV="aimt"  
 
 # Define Docker image and container details
 dockerImage="plurdist/musika:latest"
@@ -71,8 +71,32 @@ else
     exit 1
 fi
 
-# Start listener script
-print_message "INFO" "Starting listener script..."
-python "$LISTENER_SCRIPT"
+### CHECK IF CONDA IS INSTALLED ###
+if ! command -v conda &> /dev/null; then
+    print_message "ERROR" "Conda is not installed! Please install Miniconda or Anaconda and restart."
+    exit 1
+fi
+
+# Check if the Conda environment exists
+if ! conda env list | grep -q "$CONDA_ENV"; then
+    print_message "INFO" "Conda environment '$CONDA_ENV' not found. Creating it from environment.yml..."
+    conda env create -f "$ENV_FILE"
+else
+    print_message "SUCCESS" "Conda environment '$CONDA_ENV' already exists."
+fi
+
+# Activate Conda environment
+print_message "INFO" "Activating Conda environment..."
+eval "$(conda shell.bash hook)"  # Properly initialize Conda in scripts
+conda activate "$CONDA_ENV"
+
+if [ $? -eq 0 ]; then
+    print_message "SUCCESS" "Conda environment activated successfully."
+    print_message "INFO" "Starting listener script..."
+    python "$LISTENER_SCRIPT"
+else
+    print_message "ERROR" "Failed to activate Conda environment. Ensure it is installed and the environment exists."
+    exit 1
+fi
 
 print_message "SUCCESS" "Setup complete! The listener is running, waiting for OSC messages..."
