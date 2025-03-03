@@ -7,8 +7,6 @@ Beyond being just a tool, AIMAT is also about preserving and repurposing interes
 
 At the moment, AIMAT supports Musika, a deep learning model for generating high-quality audio, with plans to include other AI music models in the future. It integrates with Max/MSP, PD, Max for Live, and other OSC-enabled applications, making AI-generated music easier to incorporate into creative workflows.
 
-This repository provides **Docker-based deployment** with **OSC (Open Sound Control) integration**, allowing tools like **Max/MSP, PD, Max for Live** or other OSC-compatible applications to trigger AI-powered music generation. 
-
 ---
 
 ## 🚀 Features  
