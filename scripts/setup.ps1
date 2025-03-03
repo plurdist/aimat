@@ -3,10 +3,10 @@ $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 $DOCKER_DIR = Join-Path $SCRIPT_DIR "..\docker"
 $ENV_FILE = Join-Path $SCRIPT_DIR "environment.yml"
 $LISTENER_SCRIPT = Join-Path $SCRIPT_DIR "osc_listener.py"  
-$CONDA_ENV = "aimt" 
+$CONDA_ENV = "aimat" 
 
 # Define Docker image and container details
-$dockerImage = "plurdist/musika:latest"
+$dockerImage = "plurdist/aimat-musika:latest"
 $containerName = "musika-container"
 $composeFile = Join-Path $DOCKER_DIR "docker-compose.yml"
 

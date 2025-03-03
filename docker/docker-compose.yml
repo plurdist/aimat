@@ -1,6 +1,6 @@
 services:
   musika:
-    image: plurdist/musika:latest
+    image: plurdist/aimat-musika:latest
     container_name: musika-container
     volumes:
       - "${HOME}/musika_outputs:/output"  

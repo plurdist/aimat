@@ -8,7 +8,7 @@ LISTENER_SCRIPT="$SCRIPT_DIR/osc_listener.py"
 CONDA_ENV="aimt" 
 
 # Define Docker image and container details
-dockerImage="plurdist/musika:latest"
+dockerImage="plurdist/aimat-musika:latest"
 containerName="musika-container"
 composeFile="$DOCKER_DIR/docker-compose.yml"
 
