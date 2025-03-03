@@ -5,11 +5,12 @@ $ENV_FILE = Join-Path $SCRIPT_DIR "..\environment.yml"
 $LISTENER_SCRIPT = Join-Path $SCRIPT_DIR "osc_listener.py"  
 $CONDA_ENV = "aimat" 
 
-# Define Docker image and container details
+# docker
 $dockerImage = "plurdist/aimat-musika:latest"
 $containerName = "musika-container"
 $composeFile = Join-Path $DOCKER_DIR "docker-compose.yml"
 
+# message formatting
 function Write-ColoredMessage {
     param(
         [string]$Message,
@@ -45,7 +46,7 @@ if (-Not (Get-Command "docker-compose" -ErrorAction SilentlyContinue) -and -Not 
     Exit 1
 }
 
-# Ensure docker-compose.yml exists in the correct directory
+# Ensure docker-compose.yml exists
 if (-Not (Test-Path $composeFile)) {
     Write-ColoredMessage "Missing docker-compose.yml file! Ensure it is in $DOCKER_DIR" "ERROR"
     Exit 1
@@ -56,11 +57,17 @@ Set-Location -Path $DOCKER_DIR
 
 # Pull the latest Musika image
 Write-ColoredMessage "Pulling latest Musika image..." "INFO"
-docker pull $dockerImage
+if (-Not (docker pull $dockerImage)) {
+    Write-ColoredMessage "Failed to pull Musika image." "ERROR"
+    Exit 1
+}
 
 # Create (but do not start) the container using docker-compose
 Write-ColoredMessage "Creating Musika container using docker-compose..." "INFO"
-docker compose up --no-start --force-recreate --remove-orphans
+if (-Not (docker compose up --no-start --force-recreate --remove-orphans)) {
+    Write-ColoredMessage "Failed to create Musika container." "ERROR"
+    Exit 1
+}
 
 # Verify if the container is created
 $runningContainer = docker ps -a --filter "name=$containerName" -q
@@ -71,7 +78,7 @@ if ($runningContainer) {
     Exit 1
 }
 
-# Ensure Conda is installed
+### CHECK IF CONDA IS INSTALLED ###
 if (-Not (Get-Command "conda" -ErrorAction SilentlyContinue)) {
     Write-ColoredMessage "Conda is not installed! Please install Miniconda or Anaconda." "ERROR"
     Exit 1
@@ -81,7 +88,10 @@ if (-Not (Get-Command "conda" -ErrorAction SilentlyContinue)) {
 $existingEnv = conda env list | Select-String -Pattern "$CONDA_ENV"
 if (-Not $existingEnv) {
     Write-ColoredMessage "Creating Conda environment from environment.yml..." "INFO"
-    conda env create -f "$ENV_FILE"
+    if (-Not (conda env create -f "$ENV_FILE")) {
+        Write-ColoredMessage "Failed to create Conda environment." "ERROR"
+        Exit 1
+    }
 } else {
     Write-ColoredMessage "Conda environment '$CONDA_ENV' already exists." "SUCCESS"
 }
@@ -99,8 +109,24 @@ if (Test-Path $condaProfile) {
     Exit 1
 }
 
+Write-ColoredMessage "Conda environment activated successfully." "SUCCESS"
+
+### get local IP ###
+Write-ColoredMessage "Determining local IP address..." "INFO"
+$LOCAL_IP = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notmatch "Loopback" } | Select-Object -ExpandProperty IPAddress | Select-Object -First 1)
+
+if (-not $LOCAL_IP) {
+    Write-ColoredMessage "Failed to determine local IP address. Falling back to 127.0.0.1" "WARNING"
+    $LOCAL_IP = "127.0.0.1"
+}
+
+Write-ColoredMessage "Local IP address detected: $LOCAL_IP" "SUCCESS"
+
 # Start listener script
 Write-ColoredMessage "Starting listener script..." "INFO"
-python $LISTENER_SCRIPT
+if (-Not (python $LISTENER_SCRIPT)) {
+    Write-ColoredMessage "Listener script failed to start." "ERROR"
+    Exit 1
+}
 
-Write-ColoredMessage "Setup complete! The listener is running, waiting for OSC messages..." "SUCCESS"
+Write-ColoredMessage "Setup complete! The listener is running, waiting for OSC messages on port 5005..." "SUCCESS"
