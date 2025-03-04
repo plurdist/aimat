@@ -50,6 +50,7 @@ Once you have **Docker and Conda installed**, follow these steps:
    ```
 3. Run the setup script  
    ```bash
+   chmod +x scripts/setup.sh
    ./scripts/setup.sh
    ```
 
