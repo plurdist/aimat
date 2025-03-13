@@ -10,11 +10,11 @@ At the moment, AIMAT supports [Musika!](https://github.com/marcoppasini/musika) 
 ---
 
 ## 🚀 Features  
-✔️ **Modular and Expandable** – Easily add and switch between different combinations of AI models. 
-✔️ **OSC Integration** – Send messages from Max/MSP or other OSC software to trigger AI music generation  
-✔️ **Docker-based** – Simplifies setup and runs in an isolated environment  
-✔️ **Interactive CLI** – Simplified commands for starting and stopping AIMAT services.  
-✔️ **Cross-Platform** – Works on **Windows, macOS, and Linux**  
+- ✔️ **Modular and Expandable** – Easily add and switch between different combinations of AI models.
+- ✔️ **OSC Integration** – Send messages from Max/MSP or other OSC software to trigger AI music generation  
+- ✔️ **Docker-based** – Simplifies setup and runs in an isolated environment  
+- ✔️ **Interactive CLI** – Simplified commands for starting and stopping AIMAT services.  
+- ✔️ **Cross-Platform** – Works on **Windows, macOS, and Linux**  
 
 ---
 
