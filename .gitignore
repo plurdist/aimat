@@ -1,3 +1,7 @@
-docker/musika_outputs
-gui
-/aimt_cli.py
+docker/musika
+docker/magenta
+docker/musika_checkpoints
+docker/basic_pitch
+docker/shared_outputs
+docker/docker-compose-2.yml
+gui/
