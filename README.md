@@ -5,15 +5,15 @@ The AI Music Artist Toolkit (AIMAT) is a flexible framework designed to make wor
 
 Beyond being just a tool, AIMAT is also about preserving and repurposing interesting AI music projects, keeping them in one place where they can be explored in a practical, creative setting. It’s designed to help artists experiment with AI-generated sound, explore different parameters, and find new possibilities they might not have come across otherwise.
 
-At the moment, AIMAT supports **Musika**, a deep learning model for generating high-quality audio, with plans to include other AI music models in the future. It integrates with **Max/MSP, PD, Max for Live**, and other OSC-enabled applications, making AI-generated music easier to incorporate into creative workflows.
+At the moment, AIMAT supports [Musika!](https://github.com/marcoppasini/musika) (a deep learning model for generating high-quality audio), [Basic Pitch](https://github.com/spotify/basic-pitch) (Automatic Music Transcription) and [Midi DDSP](https://github.com/magenta/midi-ddsp) (audio generation model for synthesizing MIDI), with plans to include other AI music models in the future. It integrates with **Max/MSP, PD, Max for Live**, and other OSC-enabled applications, making AI-generated music easier to incorporate into creative workflows.
 
 ---
 
 ## 🚀 Features  
-✔️ **Modular Design** – Musika is the first integrated model, with support for others planned  
+✔️ **Modular and Expandable** – Easily add and switch between different combinations of AI models. 
 ✔️ **OSC Integration** – Send messages from Max/MSP or other OSC software to trigger AI music generation  
 ✔️ **Docker-based** – Simplifies setup and runs in an isolated environment  
-✔️ **Conda-Managed Listener** – Uses Python OSC to communicate with external applications  
+✔️ **Interactive CLI** – Simplified commands for starting and stopping AIMAT services.  
 ✔️ **Cross-Platform** – Works on **Windows, macOS, and Linux**  
 
 ---
@@ -31,106 +31,117 @@ At the moment, AIMAT supports **Musika**, a deep learning model for generating h
 
 Once you have **Docker and Conda installed**, follow these steps:  
 
-#### ✅ **Windows (PowerShell)**
-1. Open **PowerShell**  
-2. Navigate to the repo folder  
-   ```powershell
-   cd path\to\aimat
-   ```
-3. Run the setup script  
-   ```powershell
-   .\scripts\setup.ps1
-   ```
+#### 🐍 **Create a dedicated Conda environment:**
+```bash
+conda create -n aimat python=3.10
+conda activate aimat
+```
 
-#### ✅ **macOS/Linux (Bash)**
-1. Open **Terminal**  
-2. Navigate to the repo folder  
-   ```bash
-   cd /path/to/aimat
-   ```
-3. Run the setup script  
-   ```bash
-   ./scripts/setup.sh
-   ```
+#### ✅ **Install AIMAT via pip:**
+```bash
+pip install aimat
+```
+### **3️⃣ Quick Start**  
+
+Start AIMAT with a single command:
+
+```bash
+aimat start
+```
+
+This command:
+- Starts the Docker containers with your AI models.
+- Launches the OSC listener, ready to receive messages.
+
+To stop AIMAT:
+
+```bash
+aimat stop
+```
 
 ---
 
 ## 🛠️ What Happens During Setup?  
 ✅ **Checks for Docker & Conda** – Ensures all dependencies are installed  
-✅ **Creates & Configures Docker Container** – Downloads the latest AI music model  
-✅ **Sets Up Conda Environment** – Creates an isolated Python environment (`aimat`)  
+✅ **Creates & Configures the AIMAT Docker Environment** – Automatically Downloads and Configures AI Music models  
 ✅ **Starts OSC Listener** – Listens for incoming OSC messages to trigger music generation  
 
 ---
 
-## 🎵 Usage: Triggering Music Generation  
+## 🎵 OSC Usage Examples
 
-### **Sending OSC Messages (Example for Max/MSP)**
-To generate music, send an **OSC message** to the listener:  
+Send OSC messages using Max/MSP, Pure Data, or other OSC tools to trigger music generation.
 
-| Address       | Value 1 (Truncation) | Value 2 (Seconds) | Value 3 (Model) |
-|--------------|------------------|----------------|------------|
-| `/trigger_musika` | `1.5` (float) | `20` (int) | `"techno"` (string) |
+### MIDI-DDSP Synthesis
 
-**Example:**  
-- **Truncation:** Controls randomness (lower = predictable, higher = experimental)  
-- **Seconds:** Duration of the generated output  
-- **Model:** `"techno"` or `"misc"` (future models can be added)  
+Example OSC message:
 
----
-
-## 🛑 Stopping the System  
-To **manually stop** the AI Music Toolkit:  
-```powershell
-docker stop musika-container
+```osc
+/midi_ddsp your-midi-file.mid violin
 ```
-or  
+
+Supported instruments:
+- violin
+- viola
+- cello
+- double bass
+- flute
+- oboe
+- clarinet
+- saxophone
+- bassoon
+- trumpet
+- horn
+- trombone
+- tuba
+- guitar
+
+This triggers synthesis of the given MIDI file using the specified instrument.
+
+### Musika (Audio Generation)
+
+Example OSC message:
+
+```
+/musika 0.8 10 techno
+```
+
+- `truncation`: Controls randomness (0.5 - 1.5 recommended)
+- `seconds`: Duration of the generated output
+- `model`: Choose between `techno`, `misc`, or `pipes`
+
+### Basic Pitch (Audio to MIDI Conversion)
+
+Example OSC message:
+
+```
+/basic_pitch <path-to-audio-file>
+```
+
+Converts audio to MIDI, saved to your output directory.
+
+## 📂 Output Directories
+
+Generated files are stored by default in your home directory under:
+- **Musika:** `~/aimat/musika/output`
+- **MIDI-DDSP:** `~/aimat/midi_ddsp/output`
+- **Basic Pitch**: `~/aimat/basic_pitch/output`
+
+## ⚠️ Troubleshooting
+
+- **Listener or Docker Issues**: Restart with `aimat restart`
+- **Missing Generated Files**: Check container logs with:
+
 ```bash
-docker stop musika-container
+docker logs <container-name>
 ```
 
----
+## 🔜 Future Plans
 
-## ❓ Troubleshooting  
+- 🟢 GUI interface for easier model management and monitoring
+- 🟢 Integration of more AI music models
+- 🟢 Expanded customization through additional OSC commands
 
-### **1. Docker Not Running?**  
-- Ensure **Docker Desktop** is running  
-- Restart your computer if needed  
+## 📜 License
 
-### **2. Conda Environment Not Found?**  
-Run:  
-```powershell
-conda env list
-```
-If `aimt` is missing, recreate it:  
-```powershell
-conda env create -f environment.yml
-```
-
-### **3. No Generated File?**  
-- Ensure the **output directory** exists (`~/musika_outputs` or `C:\Users\YourName\musika_outputs`)  
-- Check container logs:  
-  ```bash
-  docker logs musika-container
-  ```
----
-
-## 🔜 Future Plans  
-
-🟢 **More AI Models** – Support for models beyond **Musika**  
-🟢 **Graphical Interface** – A GUI for easy control and setup  
-🟢 **Standalone Installer** – User-friendly setup without manual Docker/Conda steps  
-
----
-
-## 🏗️ Contributing  
-
-Interested in **extending the AI Music Toolkit**? Fork the repo, add a model, and submit a PR!  
-
----
-
-## 📜 License  
-
-???
-
----
+MIT License © Eric Browne
