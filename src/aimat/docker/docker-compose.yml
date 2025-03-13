@@ -1,0 +1,23 @@
+name: aimat
+
+services:
+  musika:
+    image: plurdist/aimat-musika:latest
+    volumes:
+      - "${HOME}/aimat/musika/output:/output"
+      - "${HOME}/aimat/musika/custom_checkpoints/pipes:/musika/checkpoints/pipes"
+    command: tail -f /dev/null
+
+  basic_pitch:
+    image: plurdist/aimat-basic-pitch:latest
+    volumes:
+      - "${HOME}/aimat/musika/output:/input"
+      - "${HOME}/aimat/basic_pitch/output:/output"
+    command: tail -f /dev/null
+
+  midi_ddsp:
+    image: plurdist/aimat-magenta:latest
+    volumes:
+      - "${HOME}/aimat/basic_pitch/output:/input"
+      - "${HOME}/aimat/midi_ddsp/output:/output"
+    command: tail -f /dev/null
