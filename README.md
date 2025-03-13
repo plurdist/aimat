@@ -1,7 +1,8 @@
 # AI Music Artist Toolkit (AIMAT) 
 ![Status](https://img.shields.io/badge/status-in%20development-orange) ![PyPI](https://img.shields.io/pypi/v/aimat)
 > **⚠️ AIMAT is currently under active development.**  
-> Features and setup steps may change frequently.
+> Features and setup steps may change frequently. Expect some instability!
+
 **A modular framework for experimenting with AI in music**  
 
 The AI Music Artist Toolkit (AIMAT) is an environment designed to make working with AI in music easier and more practical for artists, musicians, and creative technologists. By bringing different generative models into a single, reusable workflow, AIMAT lowers some of the technical barriers that might otherwise make these tools difficult to access or experiment with.
