@@ -1402,7 +1402,7 @@
 , 			{
 				"box" : 				{
 					"id" : "obj-49",
-					"items" : [ "misc", ",", "pipes", ",", "techno" ],
+					"items" : [ "misc", ",", "techno" ],
 					"maxclass" : "umenu",
 					"numinlets" : 1,
 					"numoutlets" : 3,
