@@ -76,55 +76,60 @@ AIMAT does not currently support Apple Silicon Macs (M1/M2/M3) due to incompatib
 
 ## 🎵 OSC Usage Examples
 
-Send OSC messages using Max/MSP, Pure Data, or other OSC tools to trigger music generation.
+Use OSC messages from tools like Max/MSP, Pure Data, or any other OSC-compatible software to trigger AIMAT's AI music generation models.
 
-### MIDI-DDSP Synthesis
+The AIMAT OSC listener expects messages on **port 5005** at your computer's **local IP address**.
 
-Example OSC message:
+### OSC Message Syntax
+
+Send OSC messages in the following general format:
 
 ```osc
-/midi_ddsp your-midi-file.mid violin
+/trigger_model <model_type> [additional_parameters]
 ```
 
-Supported instruments:
-- violin
-- viola
-- cello
-- double bass
-- flute
-- oboe
-- clarinet
-- saxophone
-- bassoon
-- trumpet
-- horn
-- trombone
-- tuba
-- guitar
+- `<model_type>`: The AI model you're triggering (`musika`, `midi_ddsp`, or `basic_pitch`).
+- `[additional_parameters]`: Varies depending on the model chosen (see specific examples below).
 
-This triggers synthesis of the given MIDI file using the specified instrument.
+### Examples:
 
-### Musika (Audio Generation)
+#### Musika (Audio Generation)
 
-Example OSC message:
+Generate audio using the Musika model:
 
-```
-/musika 0.8 10 techno
+```osc
+/trigger_model musika 0.8 10 techno
 ```
 
-- `truncation`: Controls randomness (higher = more random)
-- `seconds`: Duration of the generated output
-- `model`: Choose between `techno`, `misc`, or `pipes`
+- `0.8`: Truncation value (controls randomness, higher = more random)
+- `10`: Duration in seconds
+- `techno`: Model preset (included: `techno` and `misc` [trained on popular music])
 
-### Basic Pitch (Audio to MIDI Conversion)
+#### MIDI-DDSP (Instrument Synthesis from MIDI)
 
-Example OSC message:
+Synthesize realistic instrument sounds from MIDI:
 
+```osc
+/trigger_model midi_ddsp your-midi-file.mid violin
 ```
-/basic_pitch <path-to-audio-file>
+
+- `your-midi-file.mid`: MIDI file name (must be placed in the input folder)
+- `violin`: Instrument name (available: violin, viola, oboe, horn, tuba, bassoon, saxophone, trumpet, flute, clarinet, cello, guitar, bass, double bass)
+
+#### Basic Pitch (Audio-to-MIDI Conversion)
+
+Convert audio recordings into MIDI:
+
+```osc
+/trigger_model basic_pitch path/to/audio-file.wav
 ```
 
-Converts audio to MIDI, saved to your output directory.
+- `path/to/audio-file.wav`: Path to the audio file you wish to convert.
+
+---
+
+Make sure the input files (audio or MIDI) are correctly placed in AIMAT's designated input directories.
+
 
 ## 📂 Output Directories
 
