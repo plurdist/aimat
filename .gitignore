@@ -5,3 +5,7 @@ docker/basic_pitch
 docker/shared_outputs
 docker/docker-compose-2.yml
 gui/
+*.egg-info/
+dist/
+__pycache__/
+*.pyc
