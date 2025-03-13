@@ -1,0 +1,4 @@
+graft src/aimat
+include src/docker-compose.yml
+global-exclude __pycache__
+global-exclude *.py[cod]
