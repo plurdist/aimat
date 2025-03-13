@@ -108,14 +108,6 @@ Generate audio using the Musika model:
 - `10`: Duration in seconds
 - `techno`: Model preset (included: `techno` and `misc` [trained on popular music])
 
----
-
-### Simple Musika generation using the MAX/MSP example
-
-![hippo](https://imgur.com/cYhHVVz.gif)
-
----
-
 #### MIDI-DDSP (Instrument Synthesis from MIDI)
 
 Synthesize realistic instrument sounds from MIDI:
@@ -136,6 +128,12 @@ Convert audio recordings into MIDI:
 ```
 
 - `path/to/audio-file.wav`: Path to the audio file you wish to convert.
+
+---
+
+### Simple AIMAT Musika generation using the MAX/MSP example
+
+![hippo](https://imgur.com/cYhHVVz.gif)
 
 ---
 
