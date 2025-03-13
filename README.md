@@ -1,9 +1,11 @@
+![Status](https://img.shields.io/badge/status-in%20development-orange)
 ### AI Music Artist Toolkit (AIMAT)
+
 **A modular framework for experimenting with AI in music**  
 
 The AI Music Artist Toolkit (AIMAT) is an environment designed to make working with AI in music easier and more practical for artists, musicians, and creative technologists. By bringing different generative models into a single, reusable workflow, AIMAT lowers some of the technical barriers that might otherwise make these tools difficult to access or experiment with.
 
-Beyond being just a tool, AIMAT is also about preserving and repurposing interesting AI music projects, keeping them in one place where they can be explored in a practical, creative setting. It’s designed to help artists experiment with AI-generated sound, explore different parameters, and find new possibilities they might not have come across otherwise.
+AIMAT is also about preserving, repurposing and combining interesting AI music projects, keeping them in one place where they can be explored in a practical, creative setting. It’s designed to help artists experiment with AI-generated sound, explore different parameters, and find new possibilities they might not have come across otherwise.
 
 At the moment, AIMAT supports [Musika!](https://github.com/marcoppasini/musika) (a deep learning model for generating high-quality audio), [Basic Pitch](https://github.com/spotify/basic-pitch) (Automatic Music Transcription) and [Midi DDSP](https://github.com/magenta/midi-ddsp) (audio generation model for synthesizing MIDI), with plans to include other AI music models in the future. It integrates with **Max/MSP, PD, Max for Live**, and other OSC-enabled applications, making AI-generated music easier to incorporate into creative workflows.
 
@@ -59,12 +61,15 @@ To stop AIMAT:
 aimat stop
 ```
 
----
-
 ## 🛠️ What Happens During Setup?  
 ✅ **Checks for Docker & Conda** – Ensures all dependencies are installed  
 ✅ **Creates & Configures the AIMAT Docker Environment** – Automatically Downloads and Configures AI Music models  
 ✅ **Starts OSC Listener** – Listens for incoming OSC messages to trigger music generation  
+
+---
+#### ⚠️ macOS Users with Apple Silicon (M1/M2/M3) - Not Currently Supported 😢
+
+AIMAT does not currently support Apple Silicon Macs (M1/M2/M3) due to incompatibilities with TensorFlow and Docker images that lack ARM support.
 
 ---
 
