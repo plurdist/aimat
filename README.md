@@ -106,7 +106,7 @@ Example OSC message:
 /musika 0.8 10 techno
 ```
 
-- `truncation`: Controls randomness (0.5 - 1.5 recommended)
+- `truncation`: Controls randomness (higher = more random)
 - `seconds`: Duration of the generated output
 - `model`: Choose between `techno`, `misc`, or `pipes`
 
