@@ -56,6 +56,9 @@ This command:
 - Starts the Docker containers with your AI models.
 - Launches the OSC listener, ready to receive messages.
 
+![hippo](https://i.imgur.com/7w8iIuM.gif)
+
+
 To stop AIMAT:
 
 ```bash
@@ -104,6 +107,14 @@ Generate audio using the Musika model:
 - `0.8`: Truncation value (controls randomness, higher = more random)
 - `10`: Duration in seconds
 - `techno`: Model preset (included: `techno` and `misc` [trained on popular music])
+
+---
+
+### Simple Musika generation using the MAX/MSP example
+
+![hippo](https://imgur.com/cYhHVVz.gif)
+
+---
 
 #### MIDI-DDSP (Instrument Synthesis from MIDI)
 
