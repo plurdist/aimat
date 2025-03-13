@@ -1,4 +1,6 @@
 ![Status](https://img.shields.io/badge/status-in%20development-orange)
+> **⚠️ AIMAT is currently under active development.**  
+> Features and setup steps may change frequently.
 ### AI Music Artist Toolkit (AIMAT)
 
 **A modular framework for experimenting with AI in music**  
