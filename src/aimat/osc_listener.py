@@ -19,9 +19,21 @@ MODEL_PATHS = {
     "pipes": "checkpoints/pipes"
 }
 
-def normalize_path(path):
-    """ Converts Windows paths to Unix-style paths if necessary. """
-    return str(pathlib.PurePath(path).as_posix())
+def normalize_path(path: str) -> str:
+    """Normalise Windows, macOS ‘Macintosh HD:’, and back‑slashes → POSIX path."""
+    # Convert back‑slashes first
+    path = str(path).replace("\\", "/")
+
+    # macOS (Max/MSP) volume prefix: "Macintosh HD:/Users/…"
+    if path.lower().startswith("macintosh hd:"):
+        path = "/" + path.split(":", 1)[1]        # -> "/Users/…"
+
+    # Windows drive letter "C:/Users/…"
+    if len(path) >= 2 and path[1] == ":":
+        drive, rest = path[0], path[2:]
+        path = f"/{drive.lower()}{rest}"
+
+    return pathlib.PurePath(path).as_posix()
 
 # Get local IP (Restored!)
 def get_local_ip():
@@ -107,36 +119,54 @@ def generate_music(_unused_addr, model_type, *args):
 
         elif model_type == "basic_pitch":
             input_audio = normalize_path(args[0])
+            
             if not os.path.exists(input_audio):
-                client.send_message(f"/status", f"{model_type} Error: Input file not found: {input_audio}")
+                client.send_message("/status", f"{model_type} Error: file not found → {input_audio}")
                 return
 
             container_input_path = f"/input/{os.path.basename(input_audio)}"
-            basic_pitch_cmd = f"docker exec aimat-basic_pitch-1 basic-pitch /output {container_input_path}"
+            basic_pitch_cmd = (
+                f'docker exec aimat-basic_pitch-1 '
+                f'basic-pitch "/output" "{container_input_path}"'
+            )
 
-            client.send_message(f"/status", f"{model_type} generating...")
-            print(f"[INFO] Running Basic Pitch command: {basic_pitch_cmd}")
+            client.send_message("/status", f"{model_type} generating…")
+            print("[INFO] Running Basic Pitch:", basic_pitch_cmd)
 
-            subprocess.run(basic_pitch_cmd, shell=True, check=True)
+            try:
+                subprocess.run(basic_pitch_cmd, shell=True, check=True)
+            except subprocess.CalledProcessError as e:
+                client.send_message("/status", f"{model_type} Error: {e}")
+                return
 
-            latest_file = get_latest_file(BASIC_PITCH_OUTPUT_DIR, extension=".mid")
+            latest_file = get_latest_file(BASIC_PITCH_OUTPUT_DIR, ".mid")
             if latest_file:
-                print(f"[SUCCESS] {model_type} generation complete! Output saved at: {latest_file}")
-                client.send_message(f"/status", f"{model_type} transcription complete!")
+                client.send_message("/status", f"{model_type} transcription complete!")
                 client.send_message(f"/{model_type}_done", latest_file)
             else:
-                client.send_message(f"/status", f"{model_type} Error: No MIDI file generated!")
+                client.send_message("/status", f"{model_type} Error: No MIDI file generated!")
 
         elif model_type == "midi_ddsp":
+            arch = platform.machine().lower() 
+
             midi_file_path = os.path.basename(args[0])
             instrument_name = args[1] if len(args) > 1 else "violin"
 
             container_midi_path = f"/input/{midi_file_path}"
 
-            synth_cmd = (
-                f"docker exec aimat-midi_ddsp-1 python3 /scripts/md_synthesize.py "
-                f"--midi_path {container_midi_path} --output_dir /output --instrument {instrument_name}"
-            )
+            if "arm" in arch or "aarch64" in arch:
+                synth_cmd = (
+                    'docker exec aimat-midi_ddsp-1 bash -c "'
+                    'source /opt/conda/etc/profile.d/conda.sh && '
+                    'conda activate midi-ddsp && ' 
+                    f'python3 /scripts/md_synthesize.py --midi_path {container_midi_path} '
+                    f'--output_dir /output --instrument {instrument_name}"'
+                )
+            else:
+                synth_cmd = (
+                    f"docker exec aimat-midi_ddsp-1 python3 /scripts/md_synthesize.py "
+                    f"--midi_path {container_midi_path} --output_dir /output --instrument {instrument_name}"
+                )
 
             client.send_message(f"/status", f"{model_type} generating with {instrument_name}...")
             print(f"[INFO] Running MIDI-DDSP synthesis with instrument '{instrument_name}': {synth_cmd}")

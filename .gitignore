@@ -9,3 +9,4 @@ gui/
 dist/
 __pycache__/
 *.pyc
+local_test
