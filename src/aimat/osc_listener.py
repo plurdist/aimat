@@ -20,22 +20,25 @@ MODEL_PATHS = {
 }
 
 def normalize_path(path: str) -> str:
-    """Normalise Windows, macOS ‘Macintosh HD:’, and back‑slashes → POSIX path."""
-    # Convert back‑slashes first
-    path = str(path).replace("\\", "/")
+    """
+    Convert incoming paths from Max/MSP (macOS or Windows) to a host‑valid path
+    and return it with POSIX slashes.  *Does not* rewrite drive letters.
+    """
+    # Strip quotes Max may add and trim trailing slashes
+    path = str(path).strip('"').rstrip("\\/")
 
-    # macOS (Max/MSP) volume prefix: "Macintosh HD:/Users/…"
+    # Back‑slashes → forward slashes
+    path = path.replace("\\", "/")
+
+    # macOS Max/MSP prefix: "Macintosh HD:/Users/…"
     if path.lower().startswith("macintosh hd:"):
-        path = "/" + path.split(":", 1)[1]        # -> "/Users/…"
+        path = "/" + path.split(":", 1)[1]      # -> "/Users/…"
 
-    # Windows drive letter "C:/Users/…"
-    if len(path) >= 2 and path[1] == ":":
-        drive, rest = path[0], path[2:]
-        path = f"/{drive.lower()}{rest}"
-
+    # For Windows we leave "C:/Users/…" unchanged
     return pathlib.PurePath(path).as_posix()
 
-# Get local IP (Restored!)
+
+# Get local IP 
 def get_local_ip():
     try:
         system = platform.system()

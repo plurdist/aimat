@@ -6,6 +6,7 @@ import signal
 import subprocess
 import sys
 import psutil
+import time
 
 # ---------------------------------------------------------------------
 # paths & constants
@@ -81,8 +82,21 @@ def _stream_logs() -> None:
     if not os.path.exists(LOG_FILE):
         print("[INFO] No log file yet. Start AIMAT first.")
         return
-    print("[INFO] Streaming listener logs – press Ctrl‑C to quit.")
-    subprocess.run(["tail", "-f", LOG_FILE])
+
+    print("[INFO] Streaming listener logs – press Ctrl‑C to quit.")
+    try:
+        with open(LOG_FILE, "r", encoding="utf-8", errors="ignore") as f:
+            # Go to end of file
+            f.seek(0, os.SEEK_END)
+            while True:
+                line = f.readline()
+                if line:
+                    print(line.rstrip())
+                else:
+                    time.sleep(0.25)
+    except KeyboardInterrupt:
+        pass
+
 
 # ---------------------------------------------------------------------
 # main commands
