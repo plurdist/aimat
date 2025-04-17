@@ -23,10 +23,10 @@ RUN pip3 install --no-cache-dir -r /tmp/requirements-docker.txt
 # Run script to download models (one-time setup)
 RUN python /musika/download_models.py
 
-# Expose required ports
+#   ports
 EXPOSE 7860 6006
 
-# Set up working directory
+#  working directory
 WORKDIR /musika
 
 # Keep the container alive (prevents auto-exit)

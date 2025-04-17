@@ -1,15 +1,14 @@
-# Use a lightweight Python base image
 FROM python:3.10-slim
 
 # Set the working directory inside the container
 WORKDIR /app
 
-# Install system dependencies
+#  system dependencies
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Upgrade pip first (solves compatibility issues)
+# Upgrade pip 
 RUN pip install --upgrade pip
 
 # Install dependencies explicitly
@@ -19,8 +18,8 @@ RUN pip install --no-cache-dir \
     librosa \
     basic-pitch
 
-# Install the latest available tflite-runtime
+# latest available tflite-runtime
 RUN pip install --no-cache-dir tflite-runtime
 
-# Keep the container alive (prevents it from auto-exiting)
+# Keep  container alive 
 ENTRYPOINT ["tail", "-f", "/dev/null"]

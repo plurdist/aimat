@@ -22,19 +22,12 @@ MODEL_PATHS = {
 def normalize_path(path: str) -> str:
     """
     Convert incoming paths from Max/MSP (macOS or Windows) to a host‑valid path
-    and return it with POSIX slashes.  *Does not* rewrite drive letters.
+    and return it with POSIX slashes.
     """
-    # Strip quotes Max may add and trim trailing slashes
     path = str(path).strip('"').rstrip("\\/")
-
-    # Back‑slashes → forward slashes
     path = path.replace("\\", "/")
-
-    # macOS Max/MSP prefix: "Macintosh HD:/Users/…"
     if path.lower().startswith("macintosh hd:"):
         path = "/" + path.split(":", 1)[1]      # -> "/Users/…"
-
-    # For Windows we leave "C:/Users/…" unchanged
     return pathlib.PurePath(path).as_posix()
 
 
@@ -57,7 +50,7 @@ print(f"Detected local IP: {MAX_HOST}")
 MAX_PORT = int(os.getenv("OSC_PORT", 7400))
 client = udp_client.SimpleUDPClient(MAX_HOST, MAX_PORT)
 
-# Blinker for periodic status messages
+# Blinker for status messages
 blinker_events = {}
 
 def status_blinker(model_type):
@@ -75,7 +68,7 @@ def status_blinker(model_type):
         count = (count % 3) + 1
         time.sleep(0.5)
 
-# Get latest generated file
+# fetch latest generated file
 def get_latest_file(directory, extension=".wav"):
     files = [f for f in os.listdir(directory) if f.endswith(extension)]
     if not files:
@@ -188,7 +181,7 @@ def generate_music(_unused_addr, model_type, *args):
             client.send_message(f"/status", f"Unknown model type: {model_type}")
             return
 
-        # Stop blinking when generation completes
+        #  blinking stop when generation completes
         if model_type in blinker_events:
             blinker_events[model_type].set()
 
