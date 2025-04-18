@@ -147,7 +147,7 @@ Convert audio into MIDI:
 
 ### 🎛️ Simple AIMAT Musika generation (MAX/MSP example):
 
-![AIMAT Max Example](https://i.imgur.com/Mj2qZSy.gif)
+![aimat_musika_example](examples/aimat_musika_example.gif)
 
 ---
 
