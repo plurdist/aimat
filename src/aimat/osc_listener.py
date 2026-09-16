@@ -11,6 +11,7 @@ from pythonosc import dispatcher, osc_server, udp_client
 MUSIKA_OUTPUT_DIR = os.path.join(os.path.expanduser("~"), "aimat", "musika", "output")
 MIDI_DDSP_OUTPUT_DIR = os.path.join(os.path.expanduser("~"), "aimat", "midi_ddsp", "output")
 BASIC_PITCH_OUTPUT_DIR = os.path.join(os.path.expanduser("~"), "aimat", "basic_pitch", "output")
+CONTINUATOR_OUTPUT_DIR = os.path.join(os.path.expanduser("~"), "aimat", "continuator", "output")
 
 # Model lookup dictionary
 MODEL_PATHS = {
@@ -21,7 +22,7 @@ MODEL_PATHS = {
 
 def normalize_path(path: str) -> str:
     """
-    Convert incoming paths from Max/MSP (macOS or Windows) to a host‑valid path
+    Convert incoming paths from Max/MSP (macOS or Windows) to a host-valid path
     and return it with POSIX slashes.
     """
     path = str(path).strip('"').rstrip("\\/")
@@ -60,7 +61,8 @@ def status_blinker(model_type):
     message = {
         "musika": "Generating audio with Musika",
         "basic_pitch": "Generating MIDI with basic_pitch",
-        "midi_ddsp": "Generating audio with midi_ddsp"
+        "midi_ddsp": "Generating audio with midi_ddsp",
+        "continuator": "Generating MIDI continuation with Continuator"
     }.get(model_type, "Generating...")
 
     while not blinker_events[model_type].is_set():
@@ -127,7 +129,7 @@ def generate_music(_unused_addr, model_type, *args):
             )
 
             client.send_message("/status", f"{model_type} generating…")
-            print("[INFO] Running Basic Pitch:", basic_pitch_cmd)
+            print("[INFO] Running Basic Pitch:", basic_pitch_cmd)
 
             try:
                 subprocess.run(basic_pitch_cmd, shell=True, check=True)
@@ -176,6 +178,29 @@ def generate_music(_unused_addr, model_type, *args):
                 client.send_message(f"/{model_type}_done", latest_audio)
             else:
                 client.send_message(f"/status", f"{model_type} Error: No output generated with {instrument_name}!")
+
+        elif model_type == "continuator":
+            midi_file_path = os.path.basename(args[0])
+            container_midi_path = f"/input/{midi_file_path}"
+
+            continuator_cmd = (
+                f"docker exec aimat-continuator-1 python /continuator/continuate.py "
+                f"{container_midi_path} /output/test_1.mid --anchors 5 --kmax 6"
+                f" --decay-mode late"
+            )
+
+            client.send_message(f"/status", f"{model_type} generating...")
+            print(f"[INFO] Running Continuator command: {continuator_cmd}")
+
+            subprocess.run(continuator_cmd, shell=True, check=True)
+
+            latest_file = get_latest_file(CONTINUATOR_OUTPUT_DIR, extension=".mid")
+            if latest_file:
+                print(f"[SUCCESS] {model_type} generation complete! Output saved at: {latest_file}")
+                client.send_message(f"/status", f"{model_type} generation complete!")
+                client.send_message(f"/{model_type}_done", latest_file)
+            else:
+                client.send_message(f"/status", f"{model_type} Error: No output file generated!")
 
         else:
             client.send_message(f"/status", f"Unknown model type: {model_type}")

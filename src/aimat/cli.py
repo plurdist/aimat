@@ -32,6 +32,7 @@ def _set_image_env_vars() -> None:
         "MUSIKA_IMAGE":      "plurdist/aimat-musika",
         "BASIC_PITCH_IMAGE": "plurdist/aimat-basic-pitch",
         "MIDI_DDSP_IMAGE":   "plurdist/aimat-midi-ddsp",
+        "CONTINUATOR_IMAGE":  "plurdist/aimat-continuator",
     }
     for env_var, repo in image_map.items():
         os.environ[env_var] = f"{repo}:{suffix}"

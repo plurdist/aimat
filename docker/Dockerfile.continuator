@@ -1,0 +1,22 @@
+# Build from the repo root: docker build -f docker/Dockerfile.continuator .
+FROM python:3.11-slim-bookworm
+
+RUN apt-get update && apt-get install -y \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --upgrade pip
+
+# Pinned: continuate.py relies on the pre-refactor API (Continuator2.vom); see AIM2-34
+ARG CONTINUATOR_COMMIT=9e71270
+RUN git clone https://github.com/fpachet/continuator.git /continuator \
+    && git -C /continuator checkout ${CONTINUATOR_COMMIT}
+
+WORKDIR /continuator
+
+RUN pip install --no-cache-dir .
+
+COPY resources/scripts/continuator/continuate.py /continuator/
+
+ENTRYPOINT ["tail", "-f", "/dev/null"]
+

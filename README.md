@@ -15,6 +15,7 @@ Currently, AIMAT supports:
 - **[Musika](https://github.com/marcoppasini/musika)** — Deep learning model for generating high-quality audio.
 - **[Basic Pitch](https://github.com/spotify/basic-pitch)** — Automatic Music Transcription (audio-to-MIDI).
 - **[MIDI-DDSP](https://github.com/magenta/midi-ddsp)** — Audio generation model for synthesizing realistic instrument sounds from MIDI.
+- **[Continuator](https://github.com/fpachet/continuator)** — Style-learning MIDI continuation (experimental).
 
 It integrates seamlessly with **Max/MSP, PD, Max for Live**, and other OSC-enabled applications, making AI-generated music easy to incorporate into your creative workflows.
 
@@ -64,7 +65,7 @@ aimat start
 - Starts Docker containers with your AI models.
 - Launches the OSC listener in the background, ready to receive messages.
 
-![aimat_start_top](examples/aimat_start_stop.gif)
+![aimat_start_top](resources/examples/aimat_start_stop.gif)
 
 #### 📌 **Attached Listener Mode (Optional)**
 
@@ -105,7 +106,7 @@ Send OSC messages in the following format:
 /trigger_model <model_type> [additional_parameters]
 ```
 
-- `<model_type>`: The AI model you're triggering (`musika`, `midi_ddsp`, or `basic_pitch`).
+- `<model_type>`: The AI model you're triggering (`musika`, `midi_ddsp`, `basic_pitch`, or `continuator`).
 - `[additional_parameters]`: Specific parameters for each model (examples below).
 
 ### Examples:
@@ -143,11 +144,22 @@ Convert audio into MIDI:
 
 - `path/to/audio-file.wav`: Audio file path to convert.
 
+#### 🎼 **Continuator (MIDI Continuation, experimental)**
+
+Continue a MIDI phrase in its own style:
+
+```osc
+/trigger_model continuator your-midi-file.mid
+```
+
+- `your-midi-file.mid`: MIDI file (currently must be in `~/aimat/basic_pitch/output`).
+- Output is written to `~/aimat/continuator/output` and reported on `/continuator_done`. Each run currently overwrites the previous continuation.
+
 ---
 
 ### 🎛️ Simple AIMAT Musika generation (MAX/MSP example):
 
-![aimat_musika_example](examples/aimat_musika_example.gif)
+![aimat_musika_example](resources/examples/aimat_musika_example.gif)
 
 ---
 
@@ -160,6 +172,7 @@ Generated files are stored by default in your home directory under:
 - **Musika:** `~/aimat/musika/output`
 - **MIDI-DDSP:** `~/aimat/midi_ddsp/output`
 - **Basic Pitch:** `~/aimat/basic_pitch/output`
+- **Continuator:** `~/aimat/continuator/output`
 
 ## ⚠️ Troubleshooting
 
