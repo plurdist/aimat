@@ -45,11 +45,8 @@ def get_local_ip():
     except Exception:
         return "127.0.0.1"
 
-MAX_HOST = get_local_ip()
-print(f"Detected local IP: {MAX_HOST}")
-
-MAX_PORT = int(os.getenv("OSC_PORT", 7400))
-client = udp_client.SimpleUDPClient(MAX_HOST, MAX_PORT)
+# Reply client to Max; created by main() (or by tests)
+client = None
 
 # Blinker for status messages
 blinker_events = {}
@@ -215,10 +212,24 @@ def generate_music(_unused_addr, model_type, *args):
 
 
 #  OSC listener
-dispatcher = dispatcher.Dispatcher()
-dispatcher.map("/trigger_model", generate_music)
+def build_server(host, port):
+    osc_dispatcher = dispatcher.Dispatcher()
+    osc_dispatcher.map("/trigger_model", generate_music)
+    return osc_server.ThreadingOSCUDPServer((host, port), osc_dispatcher)
 
-OSC_PORT = int(os.getenv("OSC_PORT", 5005))
-server = osc_server.ThreadingOSCUDPServer(("0.0.0.0", OSC_PORT), dispatcher)
-print(f"Listening for OSC messages on port {OSC_PORT}...")
-server.serve_forever()
+
+def main():
+    global client
+    max_host = get_local_ip()
+    print(f"Detected local IP: {max_host}")
+    max_port = int(os.getenv("OSC_PORT", 7400))
+    client = udp_client.SimpleUDPClient(max_host, max_port)
+
+    osc_port = int(os.getenv("OSC_PORT", 5005))
+    server = build_server("0.0.0.0", osc_port)
+    print(f"Listening for OSC messages on port {osc_port}...")
+    server.serve_forever()
+
+
+if __name__ == "__main__":
+    main()

@@ -29,7 +29,9 @@ Layout:
 - Test command construction as argument lists, not shell strings.
 - Docker and compose checks (the image builds, services start, volumes mount where expected) are integration tests. Mark them so the fast suite runs without Docker.
 - The Max patch has no unit tests. Its behaviour is covered by the OSC-boundary tests.
-- There's no test suite yet. Use `pytest`, with tests under `tests/`.
+- Run the suite with `pytest` from a dev environment: `python3 -m venv .venv && .venv/bin/pip install -e ".[dev]" && .venv/bin/pytest`. The tests live under `tests/`, and the shared fixtures (`listener`, `replies`, `fake_docker`, `aimat_home`) are in `tests/conftest.py`.
+- `FakeDocker` mirrors the folder mounts in `docker-compose.yml` (`AimatHome.mounts`). If the mounts change, update both.
+- Known bugs are strict `xfail` tests in `tests/test_known_bugs.py`. A fix makes its test pass, strict mode reports the XPASS as a failure, and the fix's PR removes the marker, which turns the test into that bug's regression test.
 
 ## Linear conventions
 

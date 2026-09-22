@@ -19,5 +19,15 @@ license = { text = "MIT" }
 dependencies = ["python-osc", "docker", "psutil"]
 readme = { file = "README.md", content-type = "text/markdown" }
 
+[project.optional-dependencies]
+dev = ["pytest"]
+
 [project.scripts]
 aimat = "aimat.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+xfail_strict = true
+markers = [
+    "integration: needs Docker and the model images (slow)",
+]
