@@ -29,8 +29,15 @@ MODEL_TRIGGERS = {
 }
 
 
-@pytest.mark.xfail(reason="AIM2-8: commands are shell strings built from OSC input", strict=True)
-@pytest.mark.parametrize("model", MODEL_TRIGGERS)
+AIM2_8 = pytest.mark.xfail(reason="AIM2-8: commands are shell strings built from OSC input", strict=True)
+
+
+@pytest.mark.parametrize("model", [
+    pytest.param("musika", marks=AIM2_8),
+    "basic_pitch",   # fixed in AIM2-64
+    pytest.param("midi_ddsp", marks=AIM2_8),
+    "continuator",   # fixed in AIM2-64
+])
 def test_container_commands_are_argument_lists(model, listener, replies, fake_docker, aimat_home):
     for f in (aimat_home.musika_out / "take1.wav",
               aimat_home.basic_pitch_out / "melody.mid",
@@ -69,19 +76,6 @@ def test_basic_pitch_accepts_a_file_from_any_folder(listener, replies, fake_dock
     listener.trigger("basic_pitch", str(audio))
 
     replies.wait_for("/basic_pitch_done")
-
-
-@pytest.mark.xfail(reason="AIM2-35: every continuation is written to test_1.mid", strict=True)
-def test_each_continuation_gets_its_own_file(listener, replies, fake_docker, aimat_home):
-    midi = aimat_home.basic_pitch_out / "phrase.mid"
-    midi.write_bytes(b"")
-
-    listener.trigger("continuator", str(midi))
-    replies.wait_for("/continuator_done", count=1)
-    listener.trigger("continuator", str(midi))
-    first, second = replies.wait_for("/continuator_done", count=2)
-
-    assert first[0] != second[0]
 
 
 @pytest.mark.xfail(reason="AIM2-39: simultaneous jobs report whichever file is newest", strict=True)

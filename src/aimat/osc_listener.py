@@ -5,6 +5,7 @@ import time
 import platform
 import threading
 import pathlib
+import uuid
 from pythonosc import dispatcher, osc_server, udp_client
 
 # Set up paths (cross-platform)
@@ -19,6 +20,88 @@ MODEL_PATHS = {
     "misc": "checkpoints/misc",
     "pipes": "checkpoints/pipes"
 }
+
+
+# Optional model settings, sent over OSC as `key value` pairs after the file path.
+class SettingError(ValueError):
+    """A setting from OSC that the model can't accept."""
+
+
+def _one_of(*options):
+    def parse(key, value, flag):
+        if value not in options:
+            raise SettingError(f"{key} must be one of {', '.join(options)}")
+        return [flag, value]
+    return parse
+
+
+def _is_number(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _whole(low, high):
+    def parse(key, value, flag):
+        if not _is_number(value) or value != int(value) or not low <= value <= high:
+            raise SettingError(f"{key} must be a whole number from {low} to {high}")
+        return [flag, str(int(value))]
+    return parse
+
+
+def _decimal(low, high):
+    def parse(key, value, flag):
+        if not _is_number(value) or not low <= value <= high:
+            raise SettingError(f"{key} must be a number from {low} to {high}")
+        return [flag, format(float(value), "g")]  # OSC floats are 32-bit: 0.7 arrives as 0.699999988
+    return parse
+
+
+def _switch(key, value, flag):
+    if value not in (0, 1):
+        raise SettingError(f"{key} must be 0 or 1")
+    return [flag] if value else []
+
+
+def _tempo(key, value, flag):
+    if not _is_number(value) or value != int(value) or not (value == -1 or 20 <= value <= 400):
+        raise SettingError(f"{key} must be -1 (keep the input's tempo) or 20 to 400")
+    return [flag, str(int(value))]
+
+
+CONTINUATOR_SETTINGS = {
+    "mode": ("--mode", _one_of("continue", "freeform")),
+    "seed_from": ("--seed-from", _one_of("end", "start", "middle")),
+    "anchors": ("--anchors", _whole(0, 32)),
+    "length": ("--length", _whole(1, 500)),
+    "kmax": ("--kmax", _whole(1, 12)),
+    "transposition": ("--transposition", _switch),
+    "decay": ("--decay-mode", _one_of("full", "late", "middle", "early")),
+    "tempo": ("--tempo", _tempo),
+}
+CONTINUATOR_DEFAULTS = {"anchors": 5, "kmax": 6, "decay": "late"}
+
+BASIC_PITCH_SETTINGS = {
+    "onset": ("--onset-threshold", _decimal(0.05, 0.95)),
+    "frame": ("--frame-threshold", _decimal(0.05, 0.95)),
+    "min_note_ms": ("--minimum-note-length", _decimal(5, 5000)),
+    "min_hz": ("--minimum-frequency", _decimal(20, 20000)),
+    "max_hz": ("--maximum-frequency", _decimal(20, 20000)),
+}
+
+
+def parse_settings(args, allowed, defaults=None):
+    """Turn OSC `key value` pairs into command-line flags, checking each against `allowed`."""
+    if len(args) % 2:
+        raise SettingError("settings must be key value pairs")
+    chosen = dict(defaults or {})
+    for key, value in zip(args[::2], args[1::2]):
+        if key not in allowed:
+            raise SettingError(f"unknown setting '{key}'")
+        chosen[key] = value
+    flags = []
+    for key, value in chosen.items():
+        flag, parse = allowed[key]
+        flags += parse(key, value, flag)
+    return flags
 
 def normalize_path(path: str) -> str:
     """
@@ -119,17 +202,23 @@ def generate_music(_unused_addr, model_type, *args):
                 client.send_message("/status", f"{model_type} Error: file not found → {input_audio}")
                 return
 
+            try:
+                settings = parse_settings(args[1:], BASIC_PITCH_SETTINGS)
+            except SettingError as e:
+                client.send_message("/status", f"{model_type} Error: {e}")
+                return
+
             container_input_path = f"/input/{os.path.basename(input_audio)}"
-            basic_pitch_cmd = (
-                f'docker exec aimat-basic_pitch-1 '
-                f'basic-pitch "/output" "{container_input_path}"'
-            )
+            basic_pitch_cmd = [
+                "docker", "exec", "aimat-basic_pitch-1",
+                "basic-pitch", *settings, "/output", container_input_path,
+            ]
 
             client.send_message("/status", f"{model_type} generating…")
-            print("[INFO] Running Basic Pitch:", basic_pitch_cmd)
+            print("[INFO] Running Basic Pitch:", " ".join(basic_pitch_cmd))
 
             try:
-                subprocess.run(basic_pitch_cmd, shell=True, check=True)
+                subprocess.run(basic_pitch_cmd, check=True)
             except subprocess.CalledProcessError as e:
                 client.send_message("/status", f"{model_type} Error: {e}")
                 return
@@ -178,24 +267,30 @@ def generate_music(_unused_addr, model_type, *args):
 
         elif model_type == "continuator":
             midi_file_path = os.path.basename(args[0])
-            container_midi_path = f"/input/{midi_file_path}"
+            try:
+                settings = parse_settings(args[1:], CONTINUATOR_SETTINGS, CONTINUATOR_DEFAULTS)
+            except SettingError as e:
+                client.send_message("/status", f"{model_type} Error: {e}")
+                return
 
-            continuator_cmd = (
-                f"docker exec aimat-continuator-1 python /continuator/continuate.py "
-                f"{container_midi_path} /output/test_1.mid --anchors 5 --kmax 6"
-                f" --decay-mode late"
-            )
+            # a new file per continuation, so none overwrites the last (AIM2-35)
+            output_name = f"{os.path.splitext(midi_file_path)[0]}_cont_{uuid.uuid4().hex[:8]}.mid"
+            continuator_cmd = [
+                "docker", "exec", "aimat-continuator-1",
+                "python", "/continuator/continuate.py",
+                f"/input/{midi_file_path}", f"/output/{output_name}", *settings,
+            ]
 
             client.send_message(f"/status", f"{model_type} generating...")
-            print(f"[INFO] Running Continuator command: {continuator_cmd}")
+            print(f"[INFO] Running Continuator command: {' '.join(continuator_cmd)}")
 
-            subprocess.run(continuator_cmd, shell=True, check=True)
+            subprocess.run(continuator_cmd, check=True)
 
-            latest_file = get_latest_file(CONTINUATOR_OUTPUT_DIR, extension=".mid")
-            if latest_file:
-                print(f"[SUCCESS] {model_type} generation complete! Output saved at: {latest_file}")
+            output_file = os.path.join(CONTINUATOR_OUTPUT_DIR, output_name)
+            if os.path.exists(output_file):
+                print(f"[SUCCESS] {model_type} generation complete! Output saved at: {output_file}")
                 client.send_message(f"/status", f"{model_type} generation complete!")
-                client.send_message(f"/{model_type}_done", latest_file)
+                client.send_message(f"/{model_type}_done", output_file)
             else:
                 client.send_message(f"/status", f"{model_type} Error: No output file generated!")
 
