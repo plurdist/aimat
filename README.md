@@ -143,6 +143,14 @@ Convert audio into MIDI:
 ```
 
 - `path/to/audio-file.wav`: Audio file path to convert.
+- Optional settings, as `key value` pairs after the file:
+  - `onset`, `frame` (0.05–0.95): how strict note detection is. Low gives a dense swarm, high gives sparse notes.
+  - `min_note_ms`: shortest note kept, in milliseconds.
+  - `min_hz`, `max_hz`: the frequency range to transcribe.
+
+```osc
+/trigger_model basic_pitch path/to/audio-file.wav onset 0.7 frame 0.4 min_note_ms 120
+```
 
 #### 🎼 **Continuator (MIDI Continuation, experimental)**
 
@@ -153,7 +161,19 @@ Continue a MIDI phrase in its own style:
 ```
 
 - `your-midi-file.mid`: MIDI file (currently must be in `~/aimat/basic_pitch/output`).
-- Output is written to `~/aimat/continuator/output` and reported on `/continuator_done`. Each run currently overwrites the previous continuation.
+- Each continuation is written to its own file in `~/aimat/continuator/output` (`<input>_cont_<id>.mid`) and reported on `/continuator_done`.
+- Optional settings, as `key value` pairs after the file:
+  - `kmax` (1–12): how much context it remembers. Low wanders freely; high copies closely. Default 6.
+  - `transposition` (0/1): learn the input in all 12 keys, for a wider pitch range.
+  - `mode` (`continue`/`freeform`): pick up from the input, or sample its style freely.
+  - `seed_from` (`end`/`start`/`middle`): where a `continue` starts from.
+  - `anchors` (0–32): notes from the input pinned into the output. 0 is freest. Default 5.
+  - `decay` (`full`/`late`/`middle`/`early`): which part of the input it favours. Default `late`.
+  - `length` (1–500): notes to generate. `tempo` (-1 keeps the input's, or 20–400 BPM).
+
+```osc
+/trigger_model continuator your-midi-file.mid kmax 2 transposition 1 anchors 0 length 40
+```
 
 ---
 
