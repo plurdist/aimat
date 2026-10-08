@@ -11,6 +11,8 @@ import pathlib
 import uuid
 from pythonosc import dispatcher, osc_server, udp_client
 
+from aimat import phrase
+
 # Set up paths (cross-platform)
 MUSIKA_OUTPUT_DIR = os.path.join(os.path.expanduser("~"), "aimat", "musika", "output")
 MIDI_DDSP_OUTPUT_DIR = os.path.join(os.path.expanduser("~"), "aimat", "midi_ddsp", "output")
@@ -171,6 +173,16 @@ def staged(model_type, host_path):
         shutil.rmtree(job_dir, ignore_errors=True)
 
 
+def send_profile(model_type, path, given_path=None):
+    """/phrase_profile <path> key value …, describing the phrase in a MIDI result (AIM2-65)."""
+    try:
+        args = phrase.osc_args(path, given_path)
+    except phrase.MidiError as e:
+        client.send_message("/status", f"{model_type} Error: can't read the MIDI file → {path} ({e})")
+        return
+    client.send_message("/phrase_profile", args)
+
+
 def continuation_name(input_name):
     """`<stem>_cont_<id>.mid`, keeping one _cont_ suffix however often a continuation is fed back."""
     stem = re.sub(r"(_cont_[0-9a-f]{8})+$", "", os.path.splitext(input_name)[0])
@@ -287,6 +299,7 @@ def generate_music(_unused_addr, model_type, *args):
             if latest_file:
                 client.send_message("/status", f"{model_type} transcription complete!")
                 client.send_message(f"/{model_type}_done", latest_file)
+                send_profile(model_type, latest_file)
             else:
                 client.send_message("/status", f"{model_type} Error: No MIDI file generated!")
 
@@ -355,6 +368,7 @@ def generate_music(_unused_addr, model_type, *args):
                 print(f"[SUCCESS] {model_type} generation complete! Output saved at: {output_file}")
                 client.send_message(f"/status", f"{model_type} generation complete!")
                 client.send_message(f"/{model_type}_done", output_file)
+                send_profile(model_type, output_file, given_path=midi_file)
             else:
                 client.send_message(f"/status", f"{model_type} Error: No output file generated!")
 
