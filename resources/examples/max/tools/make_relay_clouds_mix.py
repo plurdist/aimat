@@ -83,6 +83,7 @@ def build_mixer():
 
     # speakers: meters and output choice
     section(p, "room", "SPEAKERS", 458, 380, 300, 150)
+    menus = []
     for k in range(3):
         py = 412 + k * 36
         label(p, 466, py + 2, f"speaker {k + 1}", 70, 10.0)
@@ -90,10 +91,29 @@ def build_mixer():
         meter = p.boxes[-1]["box"]["id"]
         p.wire(p.obj(2500, 70 + k * 40, f"receive~ mix_S{k + 1}", 0, 1, ["signal"]), 0, meter)
         menu = p.umenu(2700, 100 + k * 40, [str(i) for i in range(1, 17)], 50, pres=[670, py, 50, 22])
-        p.wire(p.obj(2700, 70 + k * 40, f"loadmess {k}"), 0, menu)
         plus = p.obj(2800, 100 + k * 40, "+ 1")
         p.wire(menu, 0, plus); p.wire(plus, 0, p.obj(2800, 130 + k * 40, f"s mix_out_{k + 1}", 1, 0))
+        chosen = p.obj(2900, 100 + k * 40, f"i {k}")            # the menu index this speaker is on
+        p.wire(menu, 0, chosen, 1)
+        p.wire(chosen, 0, p.obj(2900, 130 + k * 40, "prepend set")); p.wire(p.boxes[-1]["box"]["id"], 0, menu)
+        menus.append((menu, chosen))
     label(p, 670, 386, "output", 60, 9.0)
+
+    # detect the interface's outputs: refill each menu with 1..N, then show each speaker's choice again
+    detect = p.obj(3000, 40, "adstatus numoutputs", 2, 2, ["", ""], w=150)
+    found = p.number(3000, 70, 40, pres=[730, 412, 24, 22])
+    label(p, 730, 434, "outs\nfound", 30, 8.0)
+    refresh = p.button(3200, 10, 18, pres=[734, 470, 18, 18])
+    label(p, 726, 490, "detect", 40, 8.0)
+    p.wire(wake, 0, detect); p.wire(refresh, 0, detect); p.wire(detect, 0, found)
+    order = p.obj(3000, 100, "t i b", 1, 2, ["int", "bang"])
+    clear = p.msg(3100, 130, "clear")
+    count = p.obj(3000, 130, "uzi 1 1", 2, 3, ["bang", "bang", "int"])
+    append = p.obj(3000, 160, "prepend append")
+    p.wire(detect, 0, order); p.wire(order, 1, clear); p.wire(order, 0, count)
+    p.wire(count, 2, append)
+    for menu, chosen in menus:
+        p.wire(clear, 0, menu); p.wire(append, 0, menu); p.wire(count, 1, chosen)
     reset_b = p.button(2900, 100, 22, pres=[466, 540, 22, 22])
     label(p, 492, 542, "reset to the standard routing", 200, 10.0)
     reset_m = p.msg(2900, 130, "reset")
