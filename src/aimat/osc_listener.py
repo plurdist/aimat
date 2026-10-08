@@ -1,4 +1,7 @@
+import contextlib
 import os
+import re
+import shutil
 import socket
 import subprocess
 import time
@@ -115,6 +118,65 @@ def normalize_path(path: str) -> str:
     return pathlib.PurePath(path).as_posix()
 
 
+# Each container can only read the host folder mounted at its /input (docker-compose.yml).
+def input_dir(model_type):
+    return {
+        "basic_pitch": MUSIKA_OUTPUT_DIR,
+        "midi_ddsp": BASIC_PITCH_OUTPUT_DIR,
+        "continuator": BASIC_PITCH_OUTPUT_DIR,
+    }[model_type]
+
+
+STAGING_DIR = "aimat_inputs"
+
+
+class InputError(Exception):
+    """The chosen file couldn't be made readable for the model."""
+
+
+def chosen_file(model_type, path):
+    """The musician's file as a host path, or None after reporting that it doesn't exist."""
+    host_path = normalize_path(path)
+    if not os.path.exists(host_path):
+        client.send_message("/status", f"{model_type} Error: file not found → {host_path}")
+        return None
+    return host_path
+
+
+@contextlib.contextmanager
+def staged(model_type, host_path):
+    """
+    Yield the path inside the container for the musician's file (AIM2-11).
+
+    A file already in the model's input folder is read where it is. Any other file,
+    such as one on the Desktop or a continuation fed straight back in, is copied into
+    a folder of its own inside the input folder for this job, removed afterwards.
+    """
+    folder = input_dir(model_type)
+    name = os.path.basename(host_path)
+    if os.path.realpath(os.path.dirname(host_path)) == os.path.realpath(folder):
+        yield f"/input/{name}"
+        return
+    job = uuid.uuid4().hex[:8]
+    job_dir = os.path.join(folder, STAGING_DIR, job)
+    try:
+        os.makedirs(job_dir)
+        shutil.copyfile(host_path, os.path.join(job_dir, name))
+    except OSError as e:
+        shutil.rmtree(job_dir, ignore_errors=True)
+        raise InputError(f"couldn't copy {host_path} for the model: {e}") from e
+    try:
+        yield f"/input/{STAGING_DIR}/{job}/{name}"
+    finally:
+        shutil.rmtree(job_dir, ignore_errors=True)
+
+
+def continuation_name(input_name):
+    """`<stem>_cont_<id>.mid`, keeping one _cont_ suffix however often a continuation is fed back."""
+    stem = re.sub(r"(_cont_[0-9a-f]{8})+$", "", os.path.splitext(input_name)[0])
+    return f"{stem}_cont_{uuid.uuid4().hex[:8]}.mid"
+
+
 # Get local IP 
 def get_local_ip():
     try:
@@ -196,10 +258,8 @@ def generate_music(_unused_addr, model_type, *args):
                 client.send_message(f"/status", f"{model_type} Error: No output file generated!")
 
         elif model_type == "basic_pitch":
-            input_audio = normalize_path(args[0])
-            
-            if not os.path.exists(input_audio):
-                client.send_message("/status", f"{model_type} Error: file not found → {input_audio}")
+            input_audio = chosen_file(model_type, args[0])
+            if input_audio is None:
                 return
 
             try:
@@ -208,20 +268,20 @@ def generate_music(_unused_addr, model_type, *args):
                 client.send_message("/status", f"{model_type} Error: {e}")
                 return
 
-            container_input_path = f"/input/{os.path.basename(input_audio)}"
-            basic_pitch_cmd = [
-                "docker", "exec", "aimat-basic_pitch-1",
-                "basic-pitch", *settings, "/output", container_input_path,
-            ]
+            with staged(model_type, input_audio) as container_input_path:
+                basic_pitch_cmd = [
+                    "docker", "exec", "aimat-basic_pitch-1",
+                    "basic-pitch", *settings, "/output", container_input_path,
+                ]
 
-            client.send_message("/status", f"{model_type} generating…")
-            print("[INFO] Running Basic Pitch:", " ".join(basic_pitch_cmd))
+                client.send_message("/status", f"{model_type} generating…")
+                print("[INFO] Running Basic Pitch:", " ".join(basic_pitch_cmd))
 
-            try:
-                subprocess.run(basic_pitch_cmd, check=True)
-            except subprocess.CalledProcessError as e:
-                client.send_message("/status", f"{model_type} Error: {e}")
-                return
+                try:
+                    subprocess.run(basic_pitch_cmd, check=True)
+                except subprocess.CalledProcessError as e:
+                    client.send_message("/status", f"{model_type} Error: {e}")
+                    return
 
             latest_file = get_latest_file(BASIC_PITCH_OUTPUT_DIR, ".mid")
             if latest_file:
@@ -233,29 +293,30 @@ def generate_music(_unused_addr, model_type, *args):
         elif model_type == "midi_ddsp":
             arch = platform.machine().lower() 
 
-            midi_file_path = os.path.basename(args[0])
+            midi_file = chosen_file(model_type, args[0])
+            if midi_file is None:
+                return
             instrument_name = args[1] if len(args) > 1 else "violin"
 
-            container_midi_path = f"/input/{midi_file_path}"
+            with staged(model_type, midi_file) as container_midi_path:
+                if "arm" in arch or "aarch64" in arch:
+                    synth_cmd = (
+                        'docker exec aimat-midi_ddsp-1 bash -c "'
+                        'source /opt/conda/etc/profile.d/conda.sh && '
+                        'conda activate midi-ddsp && ' 
+                        f'python3 /scripts/md_synthesize.py --midi_path {container_midi_path} '
+                        f'--output_dir /output --instrument {instrument_name}"'
+                    )
+                else:
+                    synth_cmd = (
+                        f"docker exec aimat-midi_ddsp-1 python3 /scripts/md_synthesize.py "
+                        f"--midi_path {container_midi_path} --output_dir /output --instrument {instrument_name}"
+                    )
 
-            if "arm" in arch or "aarch64" in arch:
-                synth_cmd = (
-                    'docker exec aimat-midi_ddsp-1 bash -c "'
-                    'source /opt/conda/etc/profile.d/conda.sh && '
-                    'conda activate midi-ddsp && ' 
-                    f'python3 /scripts/md_synthesize.py --midi_path {container_midi_path} '
-                    f'--output_dir /output --instrument {instrument_name}"'
-                )
-            else:
-                synth_cmd = (
-                    f"docker exec aimat-midi_ddsp-1 python3 /scripts/md_synthesize.py "
-                    f"--midi_path {container_midi_path} --output_dir /output --instrument {instrument_name}"
-                )
+                client.send_message(f"/status", f"{model_type} generating with {instrument_name}...")
+                print(f"[INFO] Running MIDI-DDSP synthesis with instrument '{instrument_name}': {synth_cmd}")
 
-            client.send_message(f"/status", f"{model_type} generating with {instrument_name}...")
-            print(f"[INFO] Running MIDI-DDSP synthesis with instrument '{instrument_name}': {synth_cmd}")
-
-            subprocess.run(synth_cmd, shell=True, check=True)
+                subprocess.run(synth_cmd, shell=True, check=True)
 
             latest_audio = get_latest_file(MIDI_DDSP_OUTPUT_DIR, extension=".wav")
             if latest_audio:
@@ -266,7 +327,9 @@ def generate_music(_unused_addr, model_type, *args):
                 client.send_message(f"/status", f"{model_type} Error: No output generated with {instrument_name}!")
 
         elif model_type == "continuator":
-            midi_file_path = os.path.basename(args[0])
+            midi_file = chosen_file(model_type, args[0])
+            if midi_file is None:
+                return
             try:
                 settings = parse_settings(args[1:], CONTINUATOR_SETTINGS, CONTINUATOR_DEFAULTS)
             except SettingError as e:
@@ -274,17 +337,18 @@ def generate_music(_unused_addr, model_type, *args):
                 return
 
             # a new file per continuation, so none overwrites the last (AIM2-35)
-            output_name = f"{os.path.splitext(midi_file_path)[0]}_cont_{uuid.uuid4().hex[:8]}.mid"
-            continuator_cmd = [
-                "docker", "exec", "aimat-continuator-1",
-                "python", "/continuator/continuate.py",
-                f"/input/{midi_file_path}", f"/output/{output_name}", *settings,
-            ]
+            output_name = continuation_name(os.path.basename(midi_file))
+            with staged(model_type, midi_file) as container_midi_path:
+                continuator_cmd = [
+                    "docker", "exec", "aimat-continuator-1",
+                    "python", "/continuator/continuate.py",
+                    container_midi_path, f"/output/{output_name}", *settings,
+                ]
 
-            client.send_message(f"/status", f"{model_type} generating...")
-            print(f"[INFO] Running Continuator command: {' '.join(continuator_cmd)}")
+                client.send_message(f"/status", f"{model_type} generating...")
+                print(f"[INFO] Running Continuator command: {' '.join(continuator_cmd)}")
 
-            subprocess.run(continuator_cmd, check=True)
+                subprocess.run(continuator_cmd, check=True)
 
             output_file = os.path.join(CONTINUATOR_OUTPUT_DIR, output_name)
             if os.path.exists(output_file):
@@ -304,6 +368,8 @@ def generate_music(_unused_addr, model_type, *args):
 
     except subprocess.CalledProcessError as e:
         client.send_message(f"/status", f"Error running {model_type}: {str(e)}")
+    except InputError as e:
+        client.send_message("/status", f"{model_type} Error: {e}")
 
 
 #  OSC listener

@@ -90,3 +90,16 @@ def test_a_missing_file_is_reported_and_nothing_runs(model, listener, replies, f
 
     replies.wait_for_status(lambda s: s == f"{model} Error: file not found → {missing}")
     assert fake_docker.calls == []
+
+
+@pytest.mark.parametrize("model", MODELS)
+def test_the_copy_made_for_the_model_is_removed_afterwards(model, listener, replies, fake_docker, aimat_home, desktop):
+    chosen = desktop / f"take1{MODELS[model][1]}"
+    chosen.write_bytes(b"the musician's file")
+
+    trigger(listener, model, chosen)
+    replies.wait_for(f"/{model}_done")
+
+    leftovers = [p for p in aimat_home.root.rglob(f"take1{MODELS[model][1]}") if p != chosen]
+    assert leftovers == []
+    assert chosen.exists()
