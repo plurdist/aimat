@@ -272,6 +272,9 @@ class Listener:
     def trigger(self, model, *args):
         self._sender.send_message("/trigger_model", [model, *args])
 
+    def send(self, address, *args):
+        self._sender.send_message(address, list(args))
+
 
 @pytest.fixture
 def listener(ol, replies, fake_docker):

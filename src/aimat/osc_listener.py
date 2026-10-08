@@ -3,6 +3,7 @@ import os
 import re
 import shutil
 import socket
+import tempfile
 import subprocess
 import time
 import platform
@@ -183,6 +184,56 @@ def send_profile(model_type, path, given_path=None):
     client.send_message("/phrase_profile", args)
 
 
+def split_shaping(args):
+    """OSC `key value` pairs → (checked shaping settings, the remaining pairs) (AIM2-66)."""
+    if len(args) % 2:
+        raise SettingError("settings must be key value pairs")
+    pairs = list(zip(args[::2], args[1::2]))
+    shaping = phrase.shape_settings({k: v for k, v in pairs if k in phrase.SHAPES})
+    rest = [x for k, v in pairs if k not in phrase.SHAPES for x in (k, v)]
+    return shaping, rest
+
+
+@contextlib.contextmanager
+def shaped(model_type, midi_file, shaping):
+    """
+    Yield the file the model should read: the phrase as it is, or reshaped by the player's
+    shaping, written to a temporary file of the same name (removed afterwards).
+    """
+    if phrase.is_neutral(shaping):
+        yield midi_file
+        return
+    try:
+        notes = phrase.shape(phrase.read_notes(midi_file), shaping)
+    except phrase.MidiError as e:
+        raise InputError(f"can't read the MIDI file → {midi_file} ({e})") from e
+    folder = tempfile.mkdtemp(prefix="aimat_shaped_")
+    try:
+        reshaped = os.path.join(folder, os.path.basename(midi_file))
+        phrase.write_midi(notes, reshaped)
+        yield reshaped
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+
+
+def shape_phrase(_unused_addr, path=None, *args):
+    """/shape_phrase <path> key value … → /shape_profile <path> …, the reshaped phrase's profile."""
+    try:
+        if path is None:
+            raise phrase.ShapeError("send the path of a MIDI file")
+        host_path = normalize_path(path)
+        if not os.path.exists(host_path):
+            client.send_message("/status", f"shape Error: file not found → {host_path}")
+            return
+        shaping, rest = split_shaping(args)
+        if rest:
+            raise phrase.ShapeError(f"unknown setting '{rest[0]}'")
+        notes = phrase.shape(phrase.read_notes(host_path), shaping)
+        client.send_message("/shape_profile", phrase.profile_args(host_path, notes))
+    except (SettingError, phrase.ShapeError, phrase.MidiError) as e:
+        client.send_message("/status", f"shape Error: {e}")
+
+
 def continuation_name(input_name):
     """`<stem>_cont_<id>.mid`, keeping one _cont_ suffix however often a continuation is fed back."""
     stem = re.sub(r"(_cont_[0-9a-f]{8})+$", "", os.path.splitext(input_name)[0])
@@ -344,14 +395,16 @@ def generate_music(_unused_addr, model_type, *args):
             if midi_file is None:
                 return
             try:
-                settings = parse_settings(args[1:], CONTINUATOR_SETTINGS, CONTINUATOR_DEFAULTS)
-            except SettingError as e:
+                shaping, rest = split_shaping(args[1:])
+                settings = parse_settings(rest, CONTINUATOR_SETTINGS, CONTINUATOR_DEFAULTS)
+            except (SettingError, phrase.ShapeError) as e:
                 client.send_message("/status", f"{model_type} Error: {e}")
                 return
 
             # a new file per continuation, so none overwrites the last (AIM2-35)
             output_name = continuation_name(os.path.basename(midi_file))
-            with staged(model_type, midi_file) as container_midi_path:
+            with shaped(model_type, midi_file, shaping) as given, \
+                    staged(model_type, given) as container_midi_path:
                 continuator_cmd = [
                     "docker", "exec", "aimat-continuator-1",
                     "python", "/continuator/continuate.py",
@@ -390,6 +443,7 @@ def generate_music(_unused_addr, model_type, *args):
 def build_server(host, port):
     osc_dispatcher = dispatcher.Dispatcher()
     osc_dispatcher.map("/trigger_model", generate_music)
+    osc_dispatcher.map("/shape_phrase", shape_phrase)
     return osc_server.ThreadingOSCUDPServer((host, port), osc_dispatcher)
 
 
