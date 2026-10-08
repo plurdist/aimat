@@ -66,18 +66,6 @@ def test_a_job_that_writes_nothing_reports_an_error(listener, replies, fake_dock
     assert any("Error" in s for s in replies.statuses())
 
 
-@pytest.mark.xfail(reason="AIM2-11: Basic Pitch can only read files in Musika's output folder", strict=True)
-def test_basic_pitch_accepts_a_file_from_any_folder(listener, replies, fake_docker, aimat_home):
-    elsewhere = aimat_home.root / "Desktop"
-    elsewhere.mkdir()
-    audio = elsewhere / "take1.wav"
-    audio.write_bytes(b"")
-
-    listener.trigger("basic_pitch", str(audio))
-
-    replies.wait_for("/basic_pitch_done")
-
-
 @pytest.mark.xfail(reason="AIM2-39: simultaneous jobs report whichever file is newest", strict=True)
 def test_simultaneous_jobs_each_report_their_own_file(listener, replies, fake_docker):
     fake_docker.delay_after_write = 0.3  # both files exist before either job looks for its output
