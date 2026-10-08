@@ -261,15 +261,126 @@ def osc_args(path, given_path=None):
     With given_path (the Continuator's input), adds `change`, unless that file can't be read.
     Raises MidiError if `path` can't be read.
     """
-    notes = read_notes(path)
-    values = profile(notes)
+    given = None
     if given_path is not None:
         try:
-            values["change"] = change(read_notes(given_path), notes)
+            given = read_notes(given_path)
         except MidiError:
             pass
+    return profile_args(path, read_notes(path), given)
+
+
+def profile_args(path, notes, given=None):
+    """<path> key value … for these notes; adds `change` when the phrase they came from is given."""
+    values = profile(notes)
+    if given is not None:
+        values["change"] = change(given, notes)
     args = [path]
     for key, value in values.items():
         args.append(key)
         args.extend(value if isinstance(value, list) else [value])
     return args
+
+
+# ---------------------------------------------------------------------
+# shaping (AIM2-66): a player sculpts the phrase they hold before passing it on
+# ---------------------------------------------------------------------
+class ShapeError(ValueError):
+    """A shaping setting that can't be used."""
+
+
+# key: (lowest, highest, whole number?, neutral)
+SHAPES = {
+    "register": (-24, 24, True, 0),      # transpose, in semitones
+    "pace": (0.25, 4, False, 1.0),       # how many times faster
+    "focus": (1, 12, True, 12),          # how many of the most-used pitch classes to keep
+    "leap": (0.25, 2, False, 1.0),       # scale each note's distance from the phrase's centre
+}
+
+
+def shape_settings(pairs):
+    """Check {key: value} shaping settings from OSC; return all four, neutral where left out."""
+    chosen = {key: neutral for key, (_, _, _, neutral) in SHAPES.items()}
+    for key, value in pairs.items():
+        if key not in SHAPES:
+            raise ShapeError(f"unknown setting '{key}'")
+        low, high, whole, _ = SHAPES[key]
+        kind = "a whole number" if whole else "a number"
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            raise ShapeError(f"{key} must be {kind} from {low:g} to {high:g}")
+        value = round(value) if whole else float(value)   # Max dials send floats
+        if not low <= value <= high:
+            raise ShapeError(f"{key} must be {kind} from {low:g} to {high:g}")
+        chosen[key] = value
+    return chosen
+
+
+def is_neutral(settings):
+    return all(settings[key] == neutral for key, (_, _, _, neutral) in SHAPES.items())
+
+
+def shape(notes, settings):
+    """The phrase reshaped: focus, then leap, then register, then pace."""
+    notes = [Note(n.start, n.end, n.pitch, n.velocity) for n in notes]
+    if not notes:
+        return notes
+    if settings["focus"] < 12:
+        by_class = _pitch_class_weights(notes)
+        ranked = sorted((pc for pc in range(12) if by_class[pc] > 0), key=lambda pc: (-by_class[pc], pc))
+        kept = set(ranked[:settings["focus"]])
+        notes = [n for n in notes if n.pitch % 12 in kept]
+    if settings["leap"] != 1:
+        use_duration = any(n.duration > 0 for n in notes)
+        w = [n.duration if use_duration else 1.0 for n in notes]
+        centre = sum(n.pitch * x for n, x in zip(notes, w)) / sum(w)
+        classes = {n.pitch % 12 for n in notes}
+        for n in notes:
+            n.pitch = _snap(centre + (n.pitch - centre) * settings["leap"], classes)
+    for n in notes:
+        n.pitch = max(0, min(127, n.pitch + settings["register"]))
+        n.start /= settings["pace"]
+        n.end /= settings["pace"]
+    notes.sort(key=lambda n: (n.start, n.pitch))
+    return notes
+
+
+def _snap(target, classes):
+    """The MIDI note nearest `target` whose pitch class is in `classes` (the lower one if two are as close)."""
+    candidates = [p for p in range(int(target) - 12, int(target) + 13) if p % 12 in classes and 0 <= p <= 127]
+    return min(candidates, key=lambda p: (abs(p - target), p))
+
+
+def write_midi(notes, path, bpm=120):
+    """A Standard MIDI File (format 1) holding these notes."""
+    ticks_per_beat = 480
+    per_second = ticks_per_beat * bpm / 60
+
+    def vlq(n):
+        out = [n & 0x7F]
+        n >>= 7
+        while n:
+            out.append((n & 0x7F) | 0x80)
+            n >>= 7
+        return bytes(reversed(out))
+
+    def track(events):
+        body, now = b"", 0
+        for tick, data in events:
+            body += vlq(tick - now) + data
+            now = tick
+        body += vlq(0) + b"\xff\x2f\x00"
+        return b"MTrk" + len(body).to_bytes(4, "big") + body
+
+    tempo = round(60_000_000 / bpm).to_bytes(3, "big")
+    events = []
+    for n in notes:
+        start = round(n.start * per_second)
+        end = max(start, round(n.end * per_second))
+        events.append((end, 0, bytes([0x80, n.pitch, 64])))          # note-offs first at the same tick
+        events.append((start, 1, bytes([0x90, n.pitch, max(1, n.velocity)])))
+    events.sort(key=lambda e: (e[0], e[1]))
+    header = b"MThd" + (6).to_bytes(4, "big") + (1).to_bytes(2, "big") + (2).to_bytes(2, "big") \
+        + ticks_per_beat.to_bytes(2, "big")
+    data = header + track([(0, b"\xff\x51\x03" + tempo)]) + track([(tick, d) for tick, _, d in events])
+    with open(path, "wb") as f:
+        f.write(data)
