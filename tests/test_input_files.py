@@ -7,6 +7,7 @@ straight back into the Continuator, works like one from the previous model's
 output folder.
 """
 import re
+from pathlib import Path
 
 import pytest
 
@@ -67,7 +68,7 @@ def test_a_continuation_can_be_fed_straight_back_in(listener, replies, fake_dock
     second = replies.wait_for("/continuator_done", count=2)[1]
 
     assert second[0] != first[0]
-    assert fake_docker.last.inputs == [b"fake output"]
+    assert fake_docker.last.inputs == [Path(first[0]).read_bytes()]
 
 
 def test_feeding_continuations_back_keeps_the_file_name_short(listener, replies, fake_docker, aimat_home):

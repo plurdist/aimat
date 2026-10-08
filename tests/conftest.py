@@ -19,6 +19,8 @@ from types import SimpleNamespace
 import pytest
 from pythonosc import dispatcher, osc_server, udp_client
 
+from midifile import midi_bytes
+
 
 def free_port():
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -113,11 +115,13 @@ class FakeDocker:
     home: AimatHome
     mode: str = "works"
     delay_after_write: float = 0.0
+    outputs: dict = field(default_factory=dict)   # service -> bytes its next output file holds
     calls: list = field(default_factory=list)
     _lock: threading.Lock = field(default_factory=threading.Lock)
     _count: int = 0
 
     EXTENSIONS = {"musika": ".wav", "basic_pitch": ".mid", "midi_ddsp": ".wav", "continuator": ".mid"}
+    ONE_NOTE = midi_bytes([(0.0, 0.5, 60, 100)])   # MIDI results are real MIDI files by default
 
     def run(self, cmd, **kwargs):
         call = Call(cmd=cmd, shell=bool(kwargs.get("shell")))
@@ -149,7 +153,8 @@ class FakeDocker:
                 self._count += 1
                 n = self._count
             target = mounts["/output"] / f"fake_{n}{self.EXTENSIONS[service]}"
-        target.write_bytes(b"fake output")
+        default = self.ONE_NOTE if self.EXTENSIONS[service] == ".mid" else b"fake output"
+        target.write_bytes(self.outputs.get(service, default))
         time.sleep(self.delay_after_write)
         return subprocess.CompletedProcess(cmd, 0)
 
