@@ -95,6 +95,7 @@ def aimat_home(tmp_path, monkeypatch, ol):
 class Call:
     cmd: object          # str today (shell=True); a list once AIM2-8 is fixed
     shell: bool
+    inputs: list = field(default_factory=list)   # the bytes of each /input file the model read
 
     @property
     def text(self):
@@ -135,6 +136,7 @@ class FakeDocker:
             host_path = mounts["/input"] / container_path[len("/input/"):]
             if not host_path.exists():
                 raise subprocess.CalledProcessError(1, cmd)
+            call.inputs.append(host_path.read_bytes())
 
         if self.mode == "writes_nothing":
             return subprocess.CompletedProcess(cmd, 0)
