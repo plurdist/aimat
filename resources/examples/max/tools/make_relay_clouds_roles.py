@@ -1,37 +1,19 @@
 """
-Builds aimat_relay_clouds_roles.maxpat and its voice chain_voice_roles.maxpat (AIM2-67): the mix patch
-(v1 + MIXER) with a role per player, taken from the uilleann pipes, so each voice is recognisable:
-Player 1 regulators (the chord in pulsed stabs), Player 2 drones (root and fifth, low, long), Player 3
-chanter (one note at a time, with grace-note flicks). Each voice also has a plug-in slot (load / show / on,
-off by default, so an empty slot never silences a voice). Voice engine: chain_voice_roles.js
-(spec tools/test_voice_roles.js).
+Builds aimat_relay_clouds_roles.maxpat and its voice chain_voice_roles.maxpat (AIM2-67): v1
+(make_relay_clouds.py) with a role per player, taken from the uilleann pipes, so each voice is
+recognisable: Player 1 regulators (the chord in pulsed stabs), Player 2 drones (root and fifth, low,
+long), Player 3 chanter (one note at a time, with grace-note flicks). Each voice also has a plug-in slot
+(load / show / on, off by default, so an empty slot never silences a voice).
 
-Based on make_relay_clouds_mix.py, whose docstring follows:
-Builds aimat_relay_clouds_mix.maxpat: v1 (aimat_relay_clouds.maxpat, same voices and engines) plus a
-MIXER window. An output grid sets which sources each speaker plays, and a sends grid sets how much of
-each source feeds the reverb and delay. It also has meters, an output dropdown per speaker, and the
-current source and phrase.
+Writes only chain_voice_roles.maxpat and aimat_relay_clouds_roles.maxpat; v1's files are left alone.
+Voice engine: chain_voice_roles.js (spec tools/test_voice_roles.js). Relay engine: chain_relay_clouds.js.
 
-Writes only aimat_relay_clouds_mix.maxpat. It reuses chain_voice.maxpat, chain_voice.js,
-chain_relay_clouds.js, chain_strip.maxpat and chain_return.maxpat as they are.
-Mixer engine: chain_mixer.js (spec tools/test_mixer.js).
-
-Usage (from resources/examples/max): python3 tools/make_relay_clouds_mix.py .
+Usage (from resources/examples/max): python3 tools/make_relay_clouds_roles.py .
 """
 import sys
 from pathlib import Path
 
 from maxpatch import BG, Patch, label, section
-
-ROWS = [("V1", "1 · regulators"), ("V2", "2 · drones"), ("V3", "3 · chanter"),
-        ("REVL", "REVERB L"), ("REVR", "REVERB R"), ("DLYL", "DELAY L"), ("DLYR", "DELAY R"),
-        ("DDSP", "DDSP"), ("BED", "SOURCE BED")]
-SEND_ROWS = ["V1", "V2", "V3", "DDSP", "BED"]
-# must match DEFAULT_OUT / DEFAULT_SEND in chain_mixer.js
-DEFAULT_OUT = {"V1": [1, 0, 0], "V2": [0, 1, 0], "V3": [0, 0, 1], "REVL": [1, 0.5, 0], "REVR": [0, 0.5, 1],
-               "DLYL": [1, 0.5, 0], "DLYR": [0, 0.5, 1], "DDSP": [1, 1, 1], "BED": [1, 1, 1]}
-DEFAULT_SEND = {"V1": [0.2, 0], "V2": [0.2, 0], "V3": [0.2, 0], "DDSP": [0.2, 0], "BED": [0.2, 0]}
-
 
 # role, size (ms), spray, ring: must match ROLES in chain_voice_roles.js
 CHARACTERS = [("regulators", 70.0, 0.5, 0.5), ("drones", 600.0, 0.1, 0.85), ("chanter", 140.0, 0.3, 0.75)]
@@ -127,109 +109,6 @@ def build_voice():
     return p
 
 
-
-def as_subpatcher(sub, rect):
-    return {"fileversion": 1, "appversion": {"major": 9, "minor": 0, "revision": 7, "architecture": "x64", "modernui": 1},
-            "classnamespace": "box", "rect": rect, "gridsize": [15.0, 15.0], "openinpresentation": 1,
-            "boxes": sub.boxes, "lines": sub.lines}
-
-
-def build_mixer():
-    """The MIXER window: output grid, sends grid, meters, speaker outputs, source and phrase."""
-    p = Patch()
-    W, H = 1200, 580
-    p.panel(0, 0, W, H, BG, pres=[0, 0, W, H], rounded=0)
-    p.add("inlet", 10, 10, 30, 30, None, 0, 1, [""], comment="open")
-    p.comment(0, 0, "MIXER", 120, 20.0, bold=True, pres=[12, 6, 120, 28])
-    label(p, 110, 14, "drag a dial to change a level; every dial can be MIDI-mapped", 420, 10.0)
-    wake = p.obj(1400, 10, "loadbang", 1, 1, ["bang"])
-    to_mixer = p.obj(1400, 600, "s chain_mix", 1, 0)
-
-    def cell(key, col, x, y, px, py, init, word):
-        name = f"mix_{key}_{col}"
-        d = p.dial(x, y, name, 0.0, 1.0 if word == "send" else 1.5, init, 1, pres=[px, py, 44, 48], label=col)
-        p.boxes[-1]["box"]["showname"] = 0
-        p.wire(p.obj(x, y - 30, f"r {name}", 0, 1), 0, d)
-        pre = p.obj(x, y + 60, f"prepend {word} {key} {col}")
-        p.wire(d, 0, pre); p.wire(pre, 0, to_mixer); p.wire(wake, 0, d)
-
-    # output grid
-    section(p, "out", "OUTPUT GRID · what each speaker plays", 8, 40, 440, 530)
-    for k in range(3):
-        label(p, 252 + k * 62, 68, f"spk {k + 1}", 50, 10.0)
-    for r, (key, title) in enumerate(ROWS):
-        py = 84 + r * 52
-        label(p, 16, py + 6, title, 120, 10.0)
-        p.add("meter~", 1500, 100 + r * 40, 100, 14, None, 1, 1, ["float"], [16, py + 26, 110, 10])
-        meter = p.boxes[-1]["box"]["id"]
-        p.wire(p.obj(1500, 70 + r * 40, f"receive~ mix_{key}", 0, 1, ["signal"]), 0, meter)
-        for k in range(3):
-            cell(key, f"S{k + 1}", 1700 + k * 80, 100 + r * 120, 246 + k * 62, py, DEFAULT_OUT[key][k], "out")
-
-    # sends grid
-    section(p, "fx", "SENDS GRID · into the reverb and delay", 458, 40, 300, 330)
-    label(p, 466, 342, "(the strips' own reverb / delay dials\nare off in this version; WASH / ECHO still add)", 290, 9.0)
-    for k, col in enumerate(("REV", "DLY")):
-        label(p, 622 + k * 62, 68, col.lower(), 50, 10.0)
-    for r, key in enumerate(SEND_ROWS):
-        py = 84 + r * 52
-        label(p, 466, py + 6, dict(ROWS)[key], 140, 10.0)
-        for k, col in enumerate(("REV", "DLY")):
-            cell(key, col, 2100 + k * 80, 100 + r * 120, 616 + k * 62, py, DEFAULT_SEND[key][k], "send")
-
-    # speakers: meters and output choice
-    section(p, "room", "SPEAKERS", 458, 380, 300, 150)
-    menus = []
-    for k in range(3):
-        py = 412 + k * 36
-        label(p, 466, py + 2, f"speaker {k + 1}", 70, 10.0)
-        p.add("meter~", 2500, 100 + k * 40, 100, 14, None, 1, 1, ["float"], [540, py + 6, 120, 10])
-        meter = p.boxes[-1]["box"]["id"]
-        p.wire(p.obj(2500, 70 + k * 40, f"receive~ mix_S{k + 1}", 0, 1, ["signal"]), 0, meter)
-        menu = p.umenu(2700, 100 + k * 40, [str(i) for i in range(1, 17)], 50, pres=[670, py, 50, 22])
-        plus = p.obj(2800, 100 + k * 40, "+ 1")
-        p.wire(menu, 0, plus); p.wire(plus, 0, p.obj(2800, 130 + k * 40, f"s mix_out_{k + 1}", 1, 0))
-        chosen = p.obj(2900, 100 + k * 40, f"i {k}")            # the menu index this speaker is on
-        p.wire(menu, 0, chosen, 1)
-        p.wire(chosen, 0, p.obj(2900, 130 + k * 40, "prepend set")); p.wire(p.boxes[-1]["box"]["id"], 0, menu)
-        menus.append((menu, chosen))
-    label(p, 670, 386, "output", 60, 9.0)
-
-    # detect the interface's outputs: refill each menu with 1..N, then show each speaker's choice again
-    detect = p.obj(3000, 40, "adstatus numoutputs", 2, 2, ["", ""], w=150)
-    found = p.number(3000, 70, 40, pres=[730, 412, 24, 22])
-    label(p, 730, 434, "outs\nfound", 30, 8.0)
-    refresh = p.button(3200, 10, 18, pres=[734, 470, 18, 18])
-    label(p, 726, 490, "detect", 40, 8.0)
-    p.wire(wake, 0, detect); p.wire(refresh, 0, detect); p.wire(detect, 0, found)
-    order = p.obj(3000, 100, "t i b", 1, 2, ["int", "bang"])
-    clear = p.msg(3100, 130, "clear")
-    count = p.obj(3000, 130, "uzi 1 1", 2, 3, ["bang", "bang", "int"])
-    append = p.obj(3000, 160, "prepend append")
-    p.wire(detect, 0, order); p.wire(order, 1, clear); p.wire(order, 0, count)
-    p.wire(count, 2, append)
-    for menu, chosen in menus:
-        p.wire(clear, 0, menu); p.wire(append, 0, menu); p.wire(count, 1, chosen)
-    reset_b = p.button(2900, 100, 22, pres=[466, 540, 22, 22])
-    label(p, 492, 542, "reset to the standard routing", 200, 10.0)
-    reset_m = p.msg(2900, 130, "reset")
-    p.wire(reset_b, 0, reset_m); p.wire(reset_m, 0, to_mixer)
-
-    # source and phrase
-    section(p, "chain", "SOURCE · PHRASE", 768, 40, 424, 330)
-    src_name = p.msg(3100, 100, "no source yet", 400, pres=[776, 72, 408, 22], fontsize=10.0)
-    p.wire(p.obj(3100, 40, "r mix_source", 0, 1), 0, p.obj(3100, 70, "prepend set")); p.wire(p.boxes[-1]["box"]["id"], 0, src_name)
-    wave = p.add("waveform~", 3100, 140, 400, 120, None, 5, 6, ["float", "float", "float", "float", "list", ""],
-                 [776, 102, 408, 150])
-    set_wave = p.msg(3300, 40, "set relay_source")
-    p.wire(p.obj(3300, 10, "r relay_source_loaded", 0, 1), 0, set_wave)
-    p.wire(wake, 0, set_wave); p.wire(set_wave, 0, wave)
-    label(p, 776, 260, "phrase:", 60, 10.0)
-    status = p.msg(3100, 300, "ready: NEW SOURCE", 400, pres=[776, 280, 408, 22], fontsize=10.0)
-    p.wire(p.obj(3100, 270, "r mix_status", 0, 1), 0, status)
-    return p
-
-
 def build_relay():
     p = Patch()
     PW, PH = 1400, 800
@@ -238,7 +117,7 @@ def build_relay():
 
     # ---------------------------------------------------------------- title
     p.comment(0, 0, "AIMAT RELAY · ROLES", 300, 22.0, bold=True, pres=[12, 6, 300, 30])
-    label(p, 420, 14, "one phrase, three clouds: when your panel is green it's yours, until you PASS", 560, 11.0)
+    label(p, 330, 14, "one phrase, three clouds: when your panel is green it's yours, until you PASS", 560, 11.0)
     panic = p.button(0, 0, 30, pres=[1300, 6, 30, 30], blinkcolor=[1, 0.2, 0.2, 1])
     label(p, 1334, 12, "PANIC", 60, 12.0)
     p.wire(panic, 0, p.obj(40, 0, "s chain_panic", 1, 0))
@@ -354,7 +233,6 @@ def build_relay():
     p.wire(engine, 3, gen)
     relay_status = p.msg(LX + 400, 640, "ready: NEW SOURCE", 416, pres=[mx + 12, my + 210, 430, 22])
     p.wire(engine, 2, relay_status)
-    relay_status_out = engine
     aimat_status = p.msg(LX, 200, "waiting…", 344, pres=[mx + 12, my + 234, 430, 20], fontsize=10.0)
     st = p.obj(LX + 400, 200, "prepend set")
     p.wire(route, 3, st); p.wire(st, 0, aimat_status)
@@ -487,20 +365,9 @@ def build_relay():
     p.wire(d_groove, 0, ddsp_strip, 0); p.wire(d_groove, 0, ddsp_strip, 1)
     p.wire(reverb, 0, rev_strip, 0); p.wire(reverb, 1, rev_strip, 1)
     p.wire(delay, 0, dly_strip, 0); p.wire(delay, 1, dly_strip, 1)
-    # sends: set in the MIXER's sends grid (the strips' own send dials aren't connected in this version)
-    mixer_js = p.obj(6300, 500, "js chain_mixer.js", 1, 2, w=130)
-    p.wire(p.obj(6300, 470, "r chain_mix", 0, 1), 0, mixer_js)
-    for word, x in (("wash", 6450), ("echo", 6560)):
-        rcv = p.obj(x, 440, f"r chain_{word}", 0, 1)
-        pre = p.obj(x, 470, f"prepend {word}")
-        p.wire(rcv, 0, pre); p.wire(pre, 0, mixer_js)
-    send_sources = player_strips + [ddsp_strip, src_strip]          # rows V1 V2 V3 DDSP BED
-    for side in (0, 1):
-        sends_m = p.obj(6300 + side * 260, 560, "matrix~ 5 2 0. @ramp 30", 5, 3, ["signal", "signal", "list"], w=180)
-        p.wire(mixer_js, 1, sends_m)
-        for i, s in enumerate(send_sources):
-            p.wire(s, side, sends_m, i)
-        p.wire(sends_m, 0, reverb, side); p.wire(sends_m, 1, delay, side)
+    for s in player_strips + [src_strip, ddsp_strip]:
+        p.wire(s, 2, reverb, 0); p.wire(s, 3, reverb, 1)
+        p.wire(s, 4, delay, 0); p.wire(s, 5, delay, 1)
     # delay → reverb straight from the plug-in, so solo and the DELAY strip don't cut it
     dr_l = p.obj(6600, 300, "*~ 0.3", 2, 1, ["signal"])
     dr_r = p.obj(6660, 300, "*~ 0.3", 2, 1, ["signal"])
@@ -563,12 +430,6 @@ def build_relay():
     p.wire(phones, 0, spk_on); p.wire(spk_on, 0, spk_ramp_in); p.wire(spk_ramp_in, 0, spk_ramp)
     p.wire(phones, 0, hp_ramp_in); p.wire(hp_ramp_in, 0, hp_ramp)
 
-    def finish_from(src, outlet_n, x):
-        """finish() for outlet `outlet_n` of a multi-outlet source (the output matrix)."""
-        tap = p.obj(x, 270, "+~ 0.", 2, 1, ["signal"])
-        p.wire(src, outlet_n, tap)
-        return finish(tap, x, spk_ramp)
-
     def finish(src, x, mode_ramp):
         """master level → soft limit → STOP ALL fade → speaker/headphone mode"""
         lvl = p.obj(x, 300, "*~", 2, 1, ["signal"])
@@ -579,40 +440,16 @@ def build_relay():
         p.wire(fade, 0, cut, 1); p.wire(cut, 0, mode); p.wire(mode_ramp, 0, mode, 1)
         return cut, mode
 
-    # the output matrix: rows V1 V2 V3 REVL REVR DLYL DLYR DDSP BED → speakers 1 2 3 (MIXER output grid)
-    out_m = p.obj(OX + 1000, 200, "matrix~ 9 3 0. @ramp 30", 9, 4, ["signal", "signal", "signal", "list"], w=200)
-    p.wire(mixer_js, 0, out_m)
-
-    def mono_of(strip, x, scaled):
-        """(L + R) / 2 of a strip, times the room level if `scaled`."""
-        both = p.obj(x, 100, "+~", 2, 1, ["signal"])
-        half = p.obj(x, 130, "*~ 0.5", 2, 1, ["signal"])
-        p.wire(strip, 0, both, 0); p.wire(strip, 1, both, 1); p.wire(both, 0, half)
-        if not scaled:
-            return half
-        sc = p.obj(x, 160, "*~", 2, 1, ["signal"])
-        p.wire(half, 0, sc, 0); p.wire(room_gain, 0, sc, 1)
-        return sc
-
-    def room_side(strip, side, x):
-        """One side of an effect return, times the room level."""
-        sc = p.obj(x, 160, "*~", 2, 1, ["signal"])
-        p.wire(strip, side, sc, 0); p.wire(room_gain, 0, sc, 1)
-        return sc
-
-    rows = [mono_of(s, OX + 2000 + i * 60, False) for i, s in enumerate(player_strips)]
-    rows += [room_side(rev_strip, 0, OX + 2200), room_side(rev_strip, 1, OX + 2260),
-             room_side(dly_strip, 0, OX + 2320), room_side(dly_strip, 1, OX + 2380),
-             mono_of(ddsp_strip, OX + 2440, True), mono_of(src_strip, OX + 2500, True)]
-    for i, (sig, (key, _)) in enumerate(zip(rows, ROWS)):
-        p.wire(sig, 0, out_m, i)
-        p.wire(sig, 0, p.obj(OX + 2000 + i * 60, 200, f"send~ mix_{key}", 1, 0))
     speakers = []
-    for k in range(3):
+    for k, strip in enumerate(player_strips):
         x = OX + 1000 + k * 120
-        pre_mode, out = finish(out_m, x, spk_ramp) if k == 0 else finish_from(out_m, k, x)
+        mono = p.obj(x, 200, "+~", 2, 1, ["signal"])
+        half = p.obj(x, 230, "*~ 0.5", 2, 1, ["signal"])
+        bus = p.obj(x, 260, "+~", 2, 1, ["signal"])
+        p.wire(strip, 0, mono, 0); p.wire(strip, 1, mono, 1); p.wire(mono, 0, half)
+        p.wire(half, 0, bus, 0); p.wire(room_parts[k], 0, bus, 1)
+        pre_mode, out = finish(bus, x, spk_ramp)
         p.wire(pre_mode, 0, speaker_meters[k])
-        p.wire(pre_mode, 0, p.obj(x, 420, f"send~ mix_S{k + 1}", 1, 0))
         speakers.append(out)
     spk_dac = p.obj(OX + 1000, 460, "dac~ 1 2 3", 3, 0, w=120)
     for k, out in enumerate(speakers):
@@ -622,7 +459,6 @@ def build_relay():
     for k in range(3):
         nb = p.number(OX + 1000 + k * 50, 420, 36, pres=[ox + 380 + k * 40, oy + 32, 36, 22])
         p.wire(p.obj(OX + 1000 + k * 50, 390, f"loadmess {k + 1}"), 0, nb)
-        p.wire(p.obj(OX + 1000 + k * 50, 360, f"r mix_out_{k + 1}", 0, 1), 0, nb)
         outs.append(nb)
     chans = p.obj(OX + 1000, 445, "pak 1 2 3", 3, 1)
     for k, nb in enumerate(outs):
@@ -652,16 +488,6 @@ def build_relay():
     rec_on = p.toggle(OX + 1640, 360, 22, pres=[ox + 590, oy + 54, 22, 22])
     label(p, ox + 616, oy + 56, "REC", 40, 10.0)
     p.wire(rec_on, 0, rec)
-
-    mix_btn = p.button(9900, 40, 30, pres=[1000, 6, 30, 30])
-    label(p, 1034, 12, "MIXER", 60, 12.0)
-    opener = p.msg(9900, 80, "open")
-    pc = p.obj(9900, 110, "pcontrol", 1, 1)
-    mixer_window = p.add("newobj", 9900, 140, 80, 22.0, "p mixer", 1, 0, None, None,
-                         patcher=as_subpatcher(build_mixer(), [60.0, 80.0, 1260.0, 660.0]))
-    p.wire(mix_btn, 0, opener); p.wire(opener, 0, pc); p.wire(pc, 0, mixer_window)
-    p.wire(relay_status_out, 2, p.obj(9900, 200, "s mix_status", 1, 0))
-    p.wire(route, 0, p.obj(9900, 230, "s mix_source", 1, 0))
 
     soloist = p.obj(8300, 440, "js chain_solo.js", 1, 0, w=120)
     p.wire(p.obj(8300, 410, "r chain_solo", 0, 1), 0, soloist)
