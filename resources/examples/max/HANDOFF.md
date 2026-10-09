@@ -34,6 +34,14 @@ Read this first in a new session.
   - **NEW SOURCE resets everyone to the fresh Musika audio.** The MACHINE switch "inherit audio" (on by default) turns inheriting off.
   - Each panel shows where the player's audio came from (`src: P1 · gen 3` or `src: new source`).
   - Engine `chain_inherit.js` (spec `tools/test_inherit.js`, 22 checks). The memory blend is left out on purpose.
+- **The inherit patch didn't work musically (2026-10-09). Eric's favourite is still the OG, `aimat_relay_clouds.maxpat`, which he has saved in Max with his plug-ins and mappings. Never regenerate it.**
+- **Bodies, built 2026-10-09, untested in Max:** `aimat_relay_clouds_bodies.maxpat`. `tools/make_relay_clouds_bodies.py` builds it as a copy of Eric's saved OG, with the three voices swapped for `chain_voice_body` and a plug-in slot added per voice. Re-run it after re-saving the OG to carry new settings across.
+  - **dust = wood:** overtones 1 / 1.777 / 2.378 / 3.377, short ring, `pluck` grains, 6 kHz.
+  - **drift = string/drone:** overtones 1–6, long ring, `blackman` grains, 2.5 kHz, dark.
+  - **glass = vibraphone:** overtones 1 / 2.01 / 3.9, each with a twin detuned by +0.45% so it beats; `triangle` grains, 12 kHz.
+  - The resonators are CNMAT `resonators~ smooth`, with A/B crossfade as in v1.
+  - Gain tuning: `BODY_DRIVE` (60, the input boost) and `BODY_MAKEUP` (1) in the generator; per-voice `trim` in `chain_voice_body.js`.
+  - Engine `chain_voice_body.js` (spec `tools/test_voice_body.js`, 22 checks). Ratios from STK ModalBar.
 - **Quick tweaks if the sound check asks for them:**
   - `RESONATOR_MAKEUP` (12) in the generator: how loud the chord rings.
   - `XFADE_MS`, `SETTLE_MS`, `MIN_WEIGHT` and the character registers in `chain_voice.js`.
