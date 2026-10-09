@@ -167,6 +167,22 @@ def add_plugin_slots(og):
     og["lines"] += p.lines
 
 
+def fix_speaker_outputs(og):
+    """The speaker-output boxes sent `set 1 2 3` to dac~, which takes one channel per set message ("extra
+    arguments for set message"). A plain list sets every inlet's channel: wire pak straight into dac~."""
+    boxes = {b["box"]["id"]: b["box"] for b in og["boxes"]}
+    for l in list(og["lines"]):
+        s, d = l["patchline"]["source"][0], l["patchline"]["destination"][0]
+        if boxes[s].get("text") == "prepend set" and boxes[d].get("text", "").startswith("dac~ 1 2 3"):
+            feeders = [x for x in og["lines"] if x["patchline"]["destination"][0] == s]
+            og["lines"] = [x for x in og["lines"] if s not in (x["patchline"]["source"][0], x["patchline"]["destination"][0])]
+            og["boxes"] = [b for b in og["boxes"] if b["box"]["id"] != s]
+            for f in feeders:
+                og["lines"].append({"patchline": {"source": f["patchline"]["source"], "destination": [d, 0]}})
+            return True
+    return False
+
+
 def build_bodies(out):
     doc = json.load(open(out / "aimat_relay_clouds.maxpat"))
     og = doc["patcher"]
@@ -183,6 +199,7 @@ def build_bodies(out):
         elif box["maxclass"] == "panel" and box.get("bgcolor") == [0.78, 0.95, 0.8, 1.0]:
             box["bgcolor"] = [0.96, 0.96, 0.95, 1.0]          # saved mid-turn: open with nobody's panel lit
     add_plugin_slots(og)
+    fix_speaker_outputs(og)
     json.dump(doc, open(out / "aimat_relay_clouds_bodies.maxpat", "w"), indent=1)
     return len(og["boxes"]), len(og["lines"])
 

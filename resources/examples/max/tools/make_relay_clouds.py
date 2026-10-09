@@ -436,8 +436,7 @@ def build_relay():
     chans = p.obj(OX + 1000, 445, "pak 1 2 3", 3, 1)
     for k, nb in enumerate(outs):
         p.wire(nb, 0, chans, k)
-    set_m = p.obj(OX + 1150, 445, "prepend set")
-    p.wire(chans, 0, set_m); p.wire(set_m, 0, spk_dac)
+    p.wire(chans, 0, spk_dac)          # a list sets each inlet's output channel (`set` takes only one)
 
     # headphone mix: every voice and the room in stereo (also what gets recorded)
     hp_l = p.obj(OX + 1400, 200, "+~", 2, 1, ["signal"])
